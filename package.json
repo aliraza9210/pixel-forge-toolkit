@@ -1,0 +1,14 @@
+{
+  "name": "pixelforge",
+  "version": "1.0.0",
+  "description": "PixelForge — All-in-One Image & PDF Toolkit (monorepo root)",
+  "private": true,
+  "scripts": {
+    "dev:client": "npm run dev --prefix client",
+    "dev:server": "npm run dev --prefix server",
+    "build": "npm run build --prefix client",
+    "test:server": "npm test --prefix server",
+    "install:all": "npm install --prefix client && npm install --prefix server"
+  },
+  "workspaces": []
+}
