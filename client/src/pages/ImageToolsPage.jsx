@@ -55,8 +55,8 @@ function Tool3DItem({ tool, catConfig, index }) {
       >
         <div
           style={{
-            background: tilt.active ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.028)',
-            border: `1px solid ${tilt.active ? catConfig.glow : 'rgba(255,255,255,0.09)'}`,
+            background: tilt.active ? 'var(--bg-card-hover)' : 'var(--bg-card)',
+            border: `1px solid ${tilt.active ? catConfig.glow : 'var(--border-subtle)'}`,
             borderRadius: 9,
             padding: '8px 12px',
             display: 'flex',
@@ -65,8 +65,8 @@ function Tool3DItem({ tool, catConfig, index }) {
             gap: 8,
             backdropFilter: 'blur(6px)',
             boxShadow: tilt.active
-              ? `0 8px 28px ${catConfig.glow}, inset 0 1px 0 rgba(255,255,255,0.1)`
-              : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+              ? `0 8px 24px ${catConfig.glow}`
+              : 'var(--shadow-sm)',
             transition: 'background 0.18s, border-color 0.18s, box-shadow 0.18s',
           }}
         >
@@ -75,12 +75,11 @@ function Tool3DItem({ tool, catConfig, index }) {
               style={{
                 fontSize: 12.5,
                 fontWeight: 600,
-                color: tilt.active ? '#fff' : 'rgba(248,250,252,0.88)',
+                color: 'var(--text-primary)',
                 letterSpacing: '-0.01em',
                 display: 'block',
                 lineHeight: 1.3,
-                textShadow: tilt.active ? `0 0 16px ${catConfig.glow}` : 'none',
-                transition: 'color 0.18s, text-shadow 0.18s',
+                transition: 'color 0.18s',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -146,9 +145,9 @@ function CategoryColumn({ category, tools, colIndex }) {
         style={{
           marginBottom: 11,
           padding: '11px 12px',
-          background: 'rgba(255,255,255,0.03)',
+          background: 'var(--bg-card)',
           borderRadius: 11,
-          border: '1px solid rgba(255,255,255,0.07)',
+          border: '1px solid var(--border-subtle)',
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -159,8 +158,8 @@ function CategoryColumn({ category, tools, colIndex }) {
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: cfg.gradient, borderRadius: 5, padding: '2px 7px', fontSize: 8.5, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#fff', marginBottom: 5, boxShadow: `0 2px 8px ${cfg.glow}` }}>
             {cfg.short}
           </div>
-          <h3 style={{ fontSize: 12, fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.01em', lineHeight: 1.3 }}>{category}</h3>
-          <span style={{ fontSize: 10, color: 'rgba(148,163,184,0.6)', marginTop: 2, display: 'block' }}>{tools.length} tools</span>
+          <h3 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.01em', lineHeight: 1.3 }}>{category}</h3>
+          <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, display: 'block' }}>{tools.length} tools</span>
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -204,16 +203,16 @@ export default function ImageToolsPage() {
           </div>
 
           <h1 style={{ fontSize: 'clamp(1.9rem,3.8vw,3rem)', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.1, margin: '0 0 10px' }}>
-            <span style={{ background: 'linear-gradient(135deg,#f8fafc 0%,rgba(248,250,252,0.55) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+            <span style={{ color: 'var(--text-primary)' }}>
               Every Image Tool.
             </span>
             {' '}
-            <span style={{ background: 'linear-gradient(135deg,#3b82f6 0%,#a855f7 50%,#ec4899 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+            <span className="text-gradient-primary">
               One Platform.
             </span>
           </h1>
 
-          <p style={{ fontSize: 14.5, color: 'rgba(148,163,184,0.82)', maxWidth: 520, lineHeight: 1.6, margin: '0 0 20px' }}>
+          <p style={{ fontSize: 14.5, color: 'var(--text-muted)', maxWidth: 520, lineHeight: 1.6, margin: '0 0 20px' }}>
             {TOTAL_IMG}+ tools across {IMAGE_CATEGORIES.length} categories — edit, compress, convert, resize, and apply AI effects. All free, no sign-up.
           </p>
 
@@ -224,9 +223,9 @@ export default function ImageToolsPage() {
               { label: 'AI Powered', value: AI_COUNT },
               { label: 'Cost', value: 'Free' },
             ].map(({ label, value }) => (
-              <div key={label} style={{ padding: '7px 14px', background: 'rgba(255,255,255,0.028)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 9, backdropFilter: 'blur(6px)' }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.03em' }}>{value}</div>
-                <div style={{ fontSize: 10.5, color: 'rgba(148,163,184,0.6)', marginTop: 1 }}>{label}</div>
+              <div key={label} style={{ padding: '7px 14px', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 9, backdropFilter: 'blur(6px)' }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>{value}</div>
+                <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 1 }}>{label}</div>
               </div>
             ))}
           </div>

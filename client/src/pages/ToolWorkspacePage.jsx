@@ -104,13 +104,13 @@ export default function ToolWorkspacePage() {
           <div className="flex flex-wrap gap-2">
             {[
               { icon: Zap, label: `${tool.processingType === 'client' ? 'Browser-side' : 'Server-side'} processing` },
-              { icon: Shield, label: 'Files auto-deleted in 24h' },
+              { icon: Shield, label: 'Files auto-deleted in 60m' },
               { icon: Clock, label: 'Processes in seconds' },
             ].map(({ icon: MetaIcon, label }) => (
-              <span key={label} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full"
+              <span key={label} className="flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full shadow-sm"
                 style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}
               >
-                <MetaIcon className="w-3 h-3" style={{ color: 'var(--accent-lime)' }} />
+                <MetaIcon className="w-3.5 h-3.5" style={{ color: 'var(--accent-electric)' }} />
                 {label}
               </span>
             ))}
@@ -122,10 +122,10 @@ export default function ToolWorkspacePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="rounded-2xl p-6 sm:p-8 mb-10"
+          className="rounded-2xl p-6 sm:p-8 mb-10 shadow-lg"
           style={{
             background: 'var(--bg-card)',
-            border: '1px solid var(--border-medium)',
+            border: '1px solid var(--border-subtle)',
             minHeight: '320px',
           }}
         >

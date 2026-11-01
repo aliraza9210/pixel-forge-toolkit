@@ -1,14 +1,16 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import useThemeStore from '../store/themeStore';
 
 export default function ThreeCanvasBackground({ className = '' }) {
   const containerRef = useRef(null);
+  const theme = useThemeStore((s) => s.theme);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Check prefers-reduced-motion
+    // Respect prefers-reduced-motion
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReducedMotion) return;
 
@@ -30,18 +32,18 @@ export default function ThreeCanvasBackground({ className = '' }) {
       renderer.setSize(width, height);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       container.appendChild(renderer.domElement);
-    } catch (e) {
-      // Fallback if WebGL not supported
+    } catch {
       return;
     }
 
-    // Colors matching PixelForge theme (lime & cyan)
-    const limeColor = new THREE.Color('#a3e635');
-    const cyanColor = new THREE.Color('#38bdf8');
-    const violetColor = new THREE.Color('#8b5cf6');
+    // Color definitions based on active theme
+    const isLight = theme === 'light';
+    const primaryColor = isLight ? new THREE.Color('#32143D') : new THREE.Color('#00A6D6');
+    const secondaryColor = isLight ? new THREE.Color('#492052') : new THREE.Color('#007BA7');
+    const accentColor = isLight ? new THREE.Color('#F4B942') : new THREE.Color('#FF2D75');
 
     // 1. Particle Cloud (Starfield)
-    const particleCount = 450;
+    const particleCount = 420;
     const particleGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);
@@ -53,7 +55,7 @@ export default function ThreeCanvasBackground({ className = '' }) {
       positions[i3 + 2] = (Math.random() - 0.5) * 35;
 
       const mixRatio = Math.random();
-      const col = mixRatio > 0.5 ? limeColor : (mixRatio > 0.25 ? cyanColor : violetColor);
+      const col = mixRatio > 0.6 ? primaryColor : (mixRatio > 0.25 ? secondaryColor : accentColor);
       colors[i3] = col.r;
       colors[i3 + 1] = col.g;
       colors[i3 + 2] = col.b;
@@ -63,11 +65,11 @@ export default function ThreeCanvasBackground({ className = '' }) {
     particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
     const particleMaterial = new THREE.PointsMaterial({
-      size: 0.14,
+      size: isLight ? 0.18 : 0.14,
       vertexColors: true,
       transparent: true,
-      opacity: 0.75,
-      blending: THREE.AdditiveBlending,
+      opacity: isLight ? 0.6 : 0.75,
+      blending: isLight ? THREE.NormalBlending : THREE.AdditiveBlending,
     });
     const particles = new THREE.Points(particleGeometry, particleMaterial);
     scene.add(particles);
@@ -75,10 +77,10 @@ export default function ThreeCanvasBackground({ className = '' }) {
     // 2. Floating 3D Geometric Mesh (Wireframe Icosahedron)
     const icoGeometry = new THREE.IcosahedronGeometry(4.5, 1);
     const icoMaterial = new THREE.MeshBasicMaterial({
-      color: limeColor,
+      color: primaryColor,
       wireframe: true,
       transparent: true,
-      opacity: 0.18,
+      opacity: isLight ? 0.22 : 0.2,
     });
     const icosahedron = new THREE.Mesh(icoGeometry, icoMaterial);
     icosahedron.position.set(-14, 2, -6);
@@ -87,10 +89,10 @@ export default function ThreeCanvasBackground({ className = '' }) {
     // 3. Floating 3D Torus Ring (Wireframe)
     const torusGeometry = new THREE.TorusGeometry(3.5, 0.9, 12, 36);
     const torusMaterial = new THREE.MeshBasicMaterial({
-      color: cyanColor,
+      color: accentColor,
       wireframe: true,
       transparent: true,
-      opacity: 0.15,
+      opacity: isLight ? 0.28 : 0.22,
     });
     const torus = new THREE.Mesh(torusGeometry, torusMaterial);
     torus.position.set(15, -3, -8);
@@ -99,16 +101,16 @@ export default function ThreeCanvasBackground({ className = '' }) {
     // 4. Subtle Floating Octahedron
     const octaGeometry = new THREE.OctahedronGeometry(2.5, 0);
     const octaMaterial = new THREE.MeshBasicMaterial({
-      color: violetColor,
+      color: secondaryColor,
       wireframe: true,
       transparent: true,
-      opacity: 0.2,
+      opacity: isLight ? 0.24 : 0.2,
     });
     const octahedron = new THREE.Mesh(octaGeometry, octaMaterial);
     octahedron.position.set(10, 8, -10);
     scene.add(octahedron);
 
-    // Mouse movement interaction with smoothing
+    // Mouse movement interaction
     let targetMouseX = 0;
     let targetMouseY = 0;
     let currentMouseX = 0;
@@ -121,7 +123,6 @@ export default function ThreeCanvasBackground({ className = '' }) {
 
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
 
-    // Resize handler
     const handleResize = () => {
       if (!container || !renderer) return;
       const newWidth = container.clientWidth || window.innerWidth;
@@ -133,7 +134,6 @@ export default function ThreeCanvasBackground({ className = '' }) {
 
     window.addEventListener('resize', handleResize);
 
-    // Visibility Observer to pause rendering when scrolled offscreen
     let isVisible = true;
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -143,7 +143,6 @@ export default function ThreeCanvasBackground({ className = '' }) {
     );
     observer.observe(container);
 
-    // Animation Loop
     let animationFrameId;
     let clock = new THREE.Clock();
 
@@ -152,7 +151,6 @@ export default function ThreeCanvasBackground({ className = '' }) {
 
       if (!isVisible) return;
 
-      const delta = clock.getDelta();
       const elapsedTime = clock.getElapsedTime();
 
       // Smooth mouse lerp
@@ -160,21 +158,21 @@ export default function ThreeCanvasBackground({ className = '' }) {
       currentMouseY += (targetMouseY - currentMouseY) * 0.05;
 
       // Rotate 3D objects with organic floating motion
-      icosahedron.rotation.x = elapsedTime * 0.2;
-      icosahedron.rotation.y = elapsedTime * 0.3;
+      icosahedron.rotation.x = elapsedTime * 0.18;
+      icosahedron.rotation.y = elapsedTime * 0.25;
       icosahedron.position.y = 2 + Math.sin(elapsedTime * 0.8) * 0.8;
 
-      torus.rotation.x = elapsedTime * 0.25;
-      torus.rotation.y = elapsedTime * 0.15;
+      torus.rotation.x = elapsedTime * 0.22;
+      torus.rotation.y = elapsedTime * 0.14;
       torus.position.y = -3 + Math.cos(elapsedTime * 0.7) * 0.9;
 
-      octahedron.rotation.y = elapsedTime * 0.4;
-      octahedron.rotation.z = elapsedTime * 0.2;
+      octahedron.rotation.y = elapsedTime * 0.35;
+      octahedron.rotation.z = elapsedTime * 0.18;
       octahedron.position.y = 8 + Math.sin(elapsedTime + 1) * 0.6;
 
       // Particle slow drift & mouse parallax
-      particles.rotation.y = elapsedTime * 0.03 + currentMouseX * 0.12;
-      particles.rotation.x = currentMouseY * 0.08;
+      particles.rotation.y = elapsedTime * 0.025 + currentMouseX * 0.1;
+      particles.rotation.x = currentMouseY * 0.07;
 
       camera.position.x = currentMouseX * 2.5;
       camera.position.y = currentMouseY * 2;
@@ -204,7 +202,7 @@ export default function ThreeCanvasBackground({ className = '' }) {
       octaGeometry.dispose();
       octaMaterial.dispose();
     };
-  }, []);
+  }, [theme]);
 
   return (
     <div
@@ -215,4 +213,3 @@ export default function ThreeCanvasBackground({ className = '' }) {
     />
   );
 }
-

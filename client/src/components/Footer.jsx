@@ -62,10 +62,10 @@ export default function Footer() {
           <div className="col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4" aria-label="PixelForge">
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg, #a3e635, #65a30d)' }}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-sm"
+                style={{ background: 'var(--btn-primary-bg)' }}
               >
-                <Layers className="w-4 h-4 text-black" />
+                <Layers className="w-4 h-4" />
               </div>
               <span
                 className="text-lg font-bold"

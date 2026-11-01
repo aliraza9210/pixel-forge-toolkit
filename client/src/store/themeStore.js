@@ -6,10 +6,8 @@ function getInitialTheme() {
   if (saved === 'light' || saved === 'dark') {
     return saved;
   }
-  // Default to dark as per PixelForge aesthetic, or user system preference
-  return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
-    ? 'light'
-    : 'dark';
+  // Default to Dark Mode for first-time visitors as per specifications
+  return 'dark';
 }
 
 function applyThemeToDOM(theme) {

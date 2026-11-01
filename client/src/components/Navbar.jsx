@@ -8,6 +8,7 @@ import {
 import useAuthStore from '../store/authStore';
 import toast from 'react-hot-toast';
 import ThemeToggle from './ThemeToggle';
+import useThemeStore from '../store/themeStore';
 
 const NAV_LINKS = [
   { label: 'Image Tools', to: '/image-tools', icon: Image },
@@ -47,8 +48,8 @@ function UserMenu({ user, onLogout }) {
         aria-expanded={open}
       >
         <div
-          className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-          style={{ background: 'linear-gradient(135deg,#a3e635,#65a30d)', color: '#000' }}
+          className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm"
+          style={{ background: 'var(--btn-primary-bg)' }}
         >
           {user.name[0].toUpperCase()}
         </div>
@@ -161,10 +162,10 @@ export default function Navbar() {
           aria-label="PixelForge home"
         >
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #a3e635, #65a30d)' }}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-sm"
+            style={{ background: 'var(--btn-primary-bg)' }}
           >
-            <Layers className="w-4.5 h-4.5 text-black" />
+            <Layers className="w-4.5 h-4.5" />
           </div>
           <span
             className="text-lg font-bold tracking-tight"

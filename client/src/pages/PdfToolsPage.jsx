@@ -53,8 +53,8 @@ function Tool3DItem({ tool, catConfig, index }) {
       >
         <div
           style={{
-            background: tilt.active ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.028)',
-            border: `1px solid ${tilt.active ? catConfig.glow : 'rgba(255,255,255,0.09)'}`,
+            background: tilt.active ? 'var(--bg-card-hover)' : 'var(--bg-card)',
+            border: `1px solid ${tilt.active ? catConfig.glow : 'var(--border-subtle)'}`,
             borderRadius: 9,
             padding: '9px 13px',
             display: 'flex',
@@ -63,8 +63,8 @@ function Tool3DItem({ tool, catConfig, index }) {
             gap: 8,
             backdropFilter: 'blur(6px)',
             boxShadow: tilt.active
-              ? `0 8px 28px ${catConfig.glow}, inset 0 1px 0 rgba(255,255,255,0.1)`
-              : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+              ? `0 8px 24px ${catConfig.glow}`
+              : 'var(--shadow-sm)',
             transition: 'background 0.18s, border-color 0.18s, box-shadow 0.18s',
           }}
         >
@@ -73,12 +73,11 @@ function Tool3DItem({ tool, catConfig, index }) {
               style={{
                 fontSize: 13,
                 fontWeight: 600,
-                color: tilt.active ? '#fff' : 'rgba(248,250,252,0.88)',
+                color: 'var(--text-primary)',
                 letterSpacing: '-0.01em',
                 display: 'block',
                 lineHeight: 1.3,
-                textShadow: tilt.active ? `0 0 18px ${catConfig.glow}` : 'none',
-                transition: 'color 0.18s, text-shadow 0.18s',
+                transition: 'color 0.18s',
               }}
             >
               {tool.name}
@@ -151,9 +150,9 @@ function CategoryColumn({ category, tools, colIndex }) {
         style={{
           marginBottom: 12,
           padding: '11px 13px',
-          background: 'rgba(255,255,255,0.03)',
+          background: 'var(--bg-card)',
           borderRadius: 11,
-          border: '1px solid rgba(255,255,255,0.07)',
+          border: '1px solid var(--border-subtle)',
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -202,10 +201,10 @@ function CategoryColumn({ category, tools, colIndex }) {
           >
             {cfg.short}
           </div>
-          <h3 style={{ fontSize: 12.5, fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.01em' }}>
+          <h3 style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.01em' }}>
             {category}
           </h3>
-          <span style={{ fontSize: 10.5, color: 'rgba(148,163,184,0.65)', marginTop: 2, display: 'block' }}>
+          <span style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2, display: 'block' }}>
             {tools.length} tool{tools.length !== 1 ? 's' : ''}
           </span>
         </div>
@@ -320,30 +319,16 @@ export default function PdfToolsPage() {
               margin: '0 0 10px',
             }}
           >
-            <span
-              style={{
-                background: 'linear-gradient(135deg,#f8fafc 0%,rgba(248,250,252,0.55) 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
+            <span style={{ color: 'var(--text-primary)' }}>
               Every PDF Tool.
             </span>
             {' '}
-            <span
-              style={{
-                background: 'linear-gradient(135deg,#ef4444 0%,#f97316 45%,#a855f7 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
+            <span className="text-gradient-primary">
               One Place.
             </span>
           </h1>
 
-          <p style={{ fontSize: 14.5, color: 'rgba(148,163,184,0.82)', maxWidth: 480, lineHeight: 1.6, margin: '0 0 20px' }}>
+          <p style={{ fontSize: 14.5, color: 'var(--text-muted)', maxWidth: 480, lineHeight: 1.6, margin: '0 0 20px' }}>
             {TOTAL_PDF} tools across {PDF_CATEGORIES.length} categories — from basic editing to AI-powered intelligence. All free.
           </p>
 
@@ -358,14 +343,14 @@ export default function PdfToolsPage() {
                 key={label}
                 style={{
                   padding: '7px 14px',
-                  background: 'rgba(255,255,255,0.028)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border-subtle)',
                   borderRadius: 9,
                   backdropFilter: 'blur(6px)',
                 }}
               >
-                <div style={{ fontSize: 19, fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.03em' }}>{value}</div>
-                <div style={{ fontSize: 10.5, color: 'rgba(148,163,184,0.6)', marginTop: 1 }}>{label}</div>
+                <div style={{ fontSize: 19, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>{value}</div>
+                <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 1 }}>{label}</div>
               </div>
             ))}
           </div>

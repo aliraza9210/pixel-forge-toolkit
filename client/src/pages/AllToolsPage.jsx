@@ -35,8 +35,8 @@ export default function AllToolsPage() {
           className="mb-10"
         >
           <span
-            className="inline-block text-xs font-semibold uppercase tracking-widest mb-3 px-3 py-1 rounded-full"
-            style={{ background: 'var(--accent-lime-glow)', color: 'var(--accent-lime)', border: '1px solid rgba(163,230,53,0.25)' }}
+            className="inline-block text-xs font-bold uppercase tracking-widest mb-3 px-3.5 py-1 rounded-full shadow-sm"
+            style={{ background: 'var(--accent-lime-glow)', color: 'var(--accent-electric)', border: '1px solid var(--border-medium)' }}
           >
             Tool Directory
           </span>

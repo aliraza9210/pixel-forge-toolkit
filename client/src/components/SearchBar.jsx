@@ -25,13 +25,13 @@ export default function SearchBar({
         className="relative flex items-center rounded-xl transition-all"
         style={{
           background: 'var(--bg-secondary)',
-          border: `1px solid ${focused ? 'var(--accent-lime)' : 'var(--border-medium)'}`,
-          boxShadow: focused ? '0 0 0 3px rgba(163,230,53,0.1)' : 'none',
+          border: `1px solid ${focused ? 'var(--accent-electric)' : 'var(--border-medium)'}`,
+          boxShadow: focused ? '0 0 0 3px var(--accent-lime-glow)' : 'none',
         }}
       >
         <Search
-          className="absolute left-4 w-4 h-4 pointer-events-none"
-          style={{ color: focused ? 'var(--accent-lime)' : 'var(--text-muted)' }}
+          className="absolute left-4 w-4 h-4 pointer-events-none transition-colors"
+          style={{ color: focused ? 'var(--accent-electric)' : 'var(--text-muted)' }}
           aria-hidden="true"
         />
         <input

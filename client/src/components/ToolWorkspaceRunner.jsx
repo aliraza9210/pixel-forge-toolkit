@@ -25,6 +25,7 @@ import {
 import QRCode from 'qrcode';
 import toast from 'react-hot-toast';
 import { PDF_CATEGORIES } from '../data/toolsRegistry';
+import useThemeStore from '../store/themeStore';
 
 // Document-level AI/NLP tools routed to /api/process/ai/:toolId
 const DOC_AI_TOOLS = [
@@ -48,6 +49,8 @@ function formatBytes(bytes) {
 }
 
 export default function ToolWorkspaceRunner({ tool }) {
+  const theme = useThemeStore((s) => s.theme);
+  const isLight = theme === 'light';
   const [files, setFiles] = useState([]);
   const [options, setOptions] = useState({
     format: 'webp',
@@ -276,6 +279,22 @@ export default function ToolWorkspaceRunner({ tool }) {
       }
 
       setResult(data);
+      if (data?.file) {
+        try {
+          const prev = JSON.parse(localStorage.getItem('pixelforge-recent-files') || '[]');
+          const newEntry = {
+            filename: data.file.filename,
+            size: formatBytes(data.file.size),
+            downloadUrl: data.file.downloadUrl.startsWith('http') ? data.file.downloadUrl : `${apiBase}${data.file.downloadUrl}`,
+            toolName: tool.name,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+          const filtered = prev.filter((f) => f.filename !== newEntry.filename);
+          localStorage.setItem('pixelforge-recent-files', JSON.stringify([newEntry, ...filtered.slice(0, 19)]));
+        } catch {
+          // Ignore
+        }
+      }
       toast.success(`${tool.name} completed successfully!`);
     } catch (err) {
       setError(err.message);
@@ -460,24 +479,35 @@ export default function ToolWorkspaceRunner({ tool }) {
             {...getRootProps()}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.99 }}
-            className={`border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer flex flex-col items-center justify-center relative overflow-hidden ${
-              isDragActive
-                ? 'border-[var(--accent-lime)] bg-[var(--accent-lime-glow)] shadow-glow ring-2 ring-lime-400/30'
-                : 'border-[var(--border-medium)] hover:border-[var(--accent-lime)] bg-[var(--bg-card)]'
-            }`}
-            style={{ minHeight: '260px' }}
+            className="border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer flex flex-col items-center justify-center relative overflow-hidden"
+            style={{
+              minHeight: '270px',
+              borderColor: isDragActive
+                ? (isLight ? '#F4B942' : '#00A6D6')
+                : 'var(--border-medium)',
+              background: isDragActive
+                ? (isLight ? 'rgba(244, 185, 66, 0.12)' : 'rgba(0, 166, 214, 0.14)')
+                : 'var(--bg-secondary)',
+              boxShadow: isDragActive
+                ? (isLight ? '0 0 30px rgba(244, 185, 66, 0.35)' : '0 0 32px rgba(0, 166, 214, 0.35)')
+                : 'var(--shadow-sm)',
+            }}
           >
             <input {...getInputProps()} />
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 shadow-sm"
-              style={{ background: `${tool.color}15`, border: `1px solid ${tool.color}35` }}
+              style={{
+                background: isLight ? 'rgba(50, 20, 61, 0.08)' : 'rgba(0, 166, 214, 0.16)',
+                border: isLight ? '1px solid rgba(50, 20, 61, 0.2)' : '1px solid rgba(0, 166, 214, 0.35)',
+                color: isLight ? '#32143D' : '#00A6D6',
+              }}
             >
-              <Upload className="w-8 h-8" style={{ color: tool.color }} />
+              <Upload className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-bold mb-1">
+            <h3 className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
               {isDragActive ? 'Drop your files here...' : `Upload ${tool.name} file`}
             </h3>
-            <p className="text-xs text-muted mb-4 max-w-md">
+            <p className="text-xs mb-4 max-w-md" style={{ color: 'var(--text-muted)' }}>
               {isMultiple
                 ? 'Drag & drop multiple files, or click to browse. Max 35MB per file.'
                 : 'Drag & drop your file here, or click to select from your device.'}
@@ -486,7 +516,12 @@ export default function ToolWorkspaceRunner({ tool }) {
               {tool.inputFormats.map((fmt) => (
                 <span
                   key={fmt}
-                  className="text-[11px] font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 uppercase text-muted"
+                  className="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded uppercase"
+                  style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-muted)',
+                  }}
                 >
                   .{fmt}
                 </span>
@@ -934,18 +969,42 @@ export default function ToolWorkspaceRunner({ tool }) {
         <motion.div
           initial={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="card-depth p-8 text-center space-y-4 relative overflow-hidden shadow-glow"
+          className="card-depth p-8 text-center space-y-4 relative overflow-hidden"
+          style={{
+            background: 'var(--bg-card)',
+            boxShadow: isLight
+              ? '0 16px 40px rgba(50, 20, 61, 0.12)'
+              : '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 166, 214, 0.25)',
+          }}
         >
           <div className="relative inline-block">
-            <RefreshCw className="w-10 h-10 text-lime-400 animate-spin mx-auto" />
-            <Sparkles className="w-4 h-4 text-sky-400 absolute -top-1 -right-1 animate-pulse" />
+            <RefreshCw
+              className="w-10 h-10 animate-spin mx-auto"
+              style={{ color: isLight ? '#32143D' : '#00A6D6' }}
+            />
+            <Sparkles
+              className="w-4 h-4 absolute -top-1 -right-1 animate-pulse"
+              style={{ color: isLight ? '#F4B942' : '#FF2D75' }}
+            />
           </div>
-          <h4 className="text-lg font-bold">Processing {tool.name}...</h4>
-          <p className="text-xs text-muted">Applying native transformations with precision.</p>
-          <div className="w-full bg-white/10 rounded-full h-2.5 overflow-hidden max-w-md mx-auto shadow-inner">
+          <h4 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+            Processing {tool.name}...
+          </h4>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            Applying native transformations with precision and speed.
+          </p>
+          <div
+            className="w-full rounded-full h-3 overflow-hidden max-w-md mx-auto shadow-inner"
+            style={{ background: isLight ? '#E8EEF2' : '#111318' }}
+          >
             <motion.div
-              className="bg-gradient-to-r from-lime-400 via-sky-400 to-indigo-500 h-2.5 rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
+              className="h-3 rounded-full transition-all duration-300"
+              style={{
+                width: `${progress}%`,
+                background: isLight
+                  ? 'linear-gradient(90deg, #32143D 0%, #492052 50%, #F4B942 100%)'
+                  : 'linear-gradient(90deg, #007BA7 0%, #00A6D6 50%, #FF2D75 100%)',
+              }}
             />
           </div>
         </motion.div>
@@ -953,8 +1012,15 @@ export default function ToolWorkspaceRunner({ tool }) {
 
       {/* ─── Error Notification ───────────────────────────────────────────────── */}
       {error && (
-        <div className="card-depth p-4 border border-rose-500/30 bg-rose-500/10 text-rose-300 rounded-xl flex items-start gap-3 my-4">
-          <AlertTriangle className="w-5 h-5 shrink-0 text-rose-400 mt-0.5" />
+        <div
+          className="card-depth p-4 rounded-xl flex items-start gap-3 my-4"
+          style={{
+            background: isLight ? '#fff1f2' : 'rgba(255, 45, 117, 0.1)',
+            borderColor: isLight ? '#fecdd3' : 'rgba(255, 45, 117, 0.35)',
+            color: isLight ? '#be123c' : '#fda4af',
+          }}
+        >
+          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: isLight ? '#e11d48' : '#FF2D75' }} />
           <div>
             <h4 className="text-sm font-bold">Processing Notice</h4>
             <p className="text-xs leading-relaxed">{error}</p>
@@ -969,12 +1035,12 @@ export default function ToolWorkspaceRunner({ tool }) {
           animate={{ opacity: 1, y: 0 }}
           className="card-depth p-6 space-y-6"
         >
-          <div className="flex items-center justify-between pb-4 border-b border-white/10">
+          <div className="flex items-center justify-between pb-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
             <div className="flex items-center gap-2.5">
-              <CheckCircle className="w-6 h-6 text-lime-400" />
+              <CheckCircle className="w-6 h-6" style={{ color: isLight ? '#32143D' : '#00A6D6' }} />
               <div>
-                <h3 className="text-lg font-bold">Ready for Download</h3>
-                <p className="text-xs text-muted">File processed and verified.</p>
+                <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Ready for Download</h3>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>File processed and verified.</p>
               </div>
             </div>
             <button
@@ -988,13 +1054,19 @@ export default function ToolWorkspaceRunner({ tool }) {
 
           {/* Download card if file output was produced */}
           {result.file && (
-            <div className="p-5 rounded-xl bg-white/5 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div
+              className="p-5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              style={{
+                background: 'var(--bg-secondary)',
+                borderColor: 'var(--border-subtle)',
+              }}
+            >
               <div>
-                <p className="text-sm font-bold">{result.file.filename}</p>
-                <p className="text-xs text-muted mt-0.5">
+                <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{result.file.filename}</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                   Size: {formatBytes(result.file.size)} • Type: {result.file.mimeType}
                 </p>
-                <p className="text-[11px] text-lime-400/80 mt-1">
+                <p className="text-[11px] font-semibold mt-1" style={{ color: isLight ? '#32143D' : '#00A6D6' }}>
                   ⚡ Auto-expires in 60 minutes for your privacy.
                 </p>
               </div>
@@ -1019,28 +1091,57 @@ export default function ToolWorkspaceRunner({ tool }) {
             </div>
           )}
 
-          {/* Result Image Preview with Checkerboard Transparency Background */}
+          {/* Result Image Preview with Before & After Comparison */}
           {result.file && result.file.mimeType?.startsWith('image/') && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-semibold text-muted">Output Preview</span>
-                <span className="text-[11px] text-muted">Checkerboard grid shows transparent areas</span>
+                <span className="text-xs uppercase font-bold tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                  {files[0]?.preview ? 'Before & After Comparison' : 'Output Preview'}
+                </span>
+                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  Checkerboard grid represents transparent areas
+                </span>
               </div>
-              <div
-                className="w-full max-h-96 rounded-xl border border-white/10 flex items-center justify-center p-4 overflow-hidden"
-                style={{
-                  backgroundImage:
-                    'linear-gradient(45deg, rgba(255,255,255,0.08) 25%, transparent 25%), linear-gradient(-45deg, rgba(255,255,255,0.08) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.08) 75%), linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.08) 75%)',
-                  backgroundSize: '16px 16px',
-                  backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px',
-                  backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                }}
-              >
-                <img
-                  src={result.file.downloadUrl.startsWith('http') ? result.file.downloadUrl : `${apiBase}${result.file.downloadUrl}`}
-                  alt="Processed Result"
-                  className="max-h-80 max-w-full object-contain rounded-lg shadow-xl"
-                />
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                {files[0]?.preview && (
+                  <div
+                    className="rounded-xl p-3 border text-center"
+                    style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-subtle)' }}
+                  >
+                    <p className="text-xs font-bold mb-2" style={{ color: 'var(--text-muted)' }}>Original File</p>
+                    <div className="max-h-64 flex items-center justify-center overflow-hidden rounded-lg">
+                      <img src={files[0].preview} alt="Original input" className="max-h-60 max-w-full object-contain" />
+                    </div>
+                    <p className="text-[11px] font-mono mt-2" style={{ color: 'var(--text-muted)' }}>
+                      {formatBytes(files[0].size)}
+                    </p>
+                  </div>
+                )}
+                <div
+                  className={`rounded-xl p-3 border text-center ${!files[0]?.preview ? 'sm:col-span-2' : ''}`}
+                  style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-subtle)' }}
+                >
+                  <p className="text-xs font-bold mb-2" style={{ color: isLight ? '#32143D' : '#00A6D6' }}>Processed Result</p>
+                  <div
+                    className="max-h-64 flex items-center justify-center overflow-hidden rounded-lg p-2"
+                    style={{
+                      backgroundImage:
+                        'linear-gradient(45deg, rgba(0,0,0,0.08) 25%, transparent 25%), linear-gradient(-45deg, rgba(0,0,0,0.08) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(0,0,0,0.08) 75%), linear-gradient(-45deg, transparent 75%, rgba(0,0,0,0.08) 75%)',
+                      backgroundSize: '16px 16px',
+                      backgroundColor: isLight ? '#FFFFFF' : '#111318',
+                    }}
+                  >
+                    <img
+                      src={result.file.downloadUrl.startsWith('http') ? result.file.downloadUrl : `${apiBase}${result.file.downloadUrl}`}
+                      alt="Processed Result"
+                      className="max-h-60 max-w-full object-contain rounded shadow-lg"
+                    />
+                  </div>
+                  <p className="text-[11px] font-mono mt-2" style={{ color: isLight ? '#32143D' : '#00A6D6' }}>
+                    {formatBytes(result.file.size)}
+                  </p>
+                </div>
               </div>
             </div>
           )}

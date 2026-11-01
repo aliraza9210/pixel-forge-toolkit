@@ -18,20 +18,20 @@ export default function CategoryTabs({ categories, active, onChange, counts = {}
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(cat)}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap"
+            className="shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shadow-sm"
             style={{
-              background: isActive ? 'var(--accent-lime)' : 'var(--bg-card)',
-              color: isActive ? '#0a0a0b' : 'var(--text-secondary)',
-              border: `1px solid ${isActive ? 'var(--accent-lime)' : 'var(--border-subtle)'}`,
+              background: isActive ? 'var(--btn-primary-bg)' : 'var(--bg-card)',
+              color: isActive ? '#ffffff' : 'var(--text-secondary)',
+              border: `1px solid ${isActive ? 'var(--border-glow)' : 'var(--border-subtle)'}`,
             }}
           >
             {cat}
             {count !== undefined && (
               <span
-                className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+                className="text-[10px] px-1.5 py-0.2 rounded-full font-semibold font-mono"
                 style={{
-                  background: isActive ? 'rgba(0,0,0,0.2)' : 'var(--bg-elevated)',
-                  color: isActive ? '#0a0a0b' : 'var(--text-muted)',
+                  background: isActive ? 'rgba(255,255,255,0.22)' : 'var(--bg-secondary)',
+                  color: isActive ? '#ffffff' : 'var(--text-muted)',
                 }}
               >
                 {count}
