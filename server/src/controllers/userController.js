@@ -8,6 +8,8 @@ const { sendSuccess, sendError } = require('../utils/response');
 const updateProfileValidation = [
   body('name')
     .optional()
+    .isString()
+    .withMessage('Name must be a string')
     .trim()
     .isLength({ min: 2, max: 60 })
     .withMessage('Name must be 2–60 characters'),
@@ -24,7 +26,7 @@ async function updateProfile(req, res, next) {
 
     const { name } = req.body;
     const update = {};
-    if (name) update.name = name;
+    if (name && typeof name === 'string') update.name = String(name).trim();
 
     const user = await User.findByIdAndUpdate(req.user._id, update, {
       new: true,

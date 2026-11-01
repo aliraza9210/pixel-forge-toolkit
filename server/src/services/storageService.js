@@ -166,8 +166,19 @@ function cleanupFile(token) {
 
   if (fileData) {
     try {
-      if (fs.existsSync(fileData.path)) {
-        fs.unlinkSync(fileData.path);
+      const resolvedTarget = path.resolve(fileData.path);
+      const resolvedUploads = path.resolve(UPLOADS_DIR);
+      const resolvedProcessed = path.resolve(PROCESSED_DIR);
+
+      const relUploads = path.relative(resolvedUploads, resolvedTarget);
+      const relProcessed = path.relative(resolvedProcessed, resolvedTarget);
+
+      const isContained =
+        (!relUploads.startsWith('..') && !path.isAbsolute(relUploads)) ||
+        (!relProcessed.startsWith('..') && !path.isAbsolute(relProcessed));
+
+      if (isContained && fs.existsSync(resolvedTarget)) {
+        fs.unlinkSync(resolvedTarget);
       }
     } catch (err) {
       console.warn(`[Storage] Failed to delete file ${fileData.path}:`, err.message);

@@ -1,6 +1,8 @@
 'use strict';
 
 require('dotenv').config();
+const { validateEnv } = require('./config/envValidator');
+validateEnv();
 const app = require('./app');
 const { connectDB } = require('./config/database');
 const { startCleanupJob } = require('./services/cleanupJob');

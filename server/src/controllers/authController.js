@@ -37,14 +37,20 @@ function setCookieAndRespond(res, user, statusCode, message) {
 
 const registerValidation = [
   body('name')
+    .isString()
+    .withMessage('Name must be a string')
     .trim()
     .isLength({ min: 2, max: 60 })
     .withMessage('Name must be 2–60 characters'),
   body('email')
+    .isString()
+    .withMessage('Email must be a string')
     .isEmail()
     .normalizeEmail()
     .withMessage('Please provide a valid email'),
   body('password')
+    .isString()
+    .withMessage('Password must be a string')
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters')
     .matches(/[A-Za-z]/)
@@ -54,8 +60,17 @@ const registerValidation = [
 ];
 
 const loginValidation = [
-  body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
-  body('password').notEmpty().withMessage('Password is required'),
+  body('email')
+    .isString()
+    .withMessage('Email must be a string')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email'),
+  body('password')
+    .isString()
+    .withMessage('Password must be a string')
+    .notEmpty()
+    .withMessage('Password is required'),
 ];
 
 // ─── Controllers ──────────────────────────────────────────────────────────────
@@ -69,10 +84,15 @@ async function register(req, res, next) {
 
     const { name, email, password } = req.body;
 
-    const existing = await User.findOne({ email });
+    if (typeof email !== 'string' || typeof password !== 'string' || typeof name !== 'string') {
+      return sendError(res, 'Invalid input data types', 400);
+    }
+
+    const safeEmail = String(email).trim().toLowerCase();
+    const existing = await User.findOne({ email: safeEmail });
     if (existing) return sendError(res, 'Email is already registered', 409);
 
-    const user = await User.create({ name, email, password });
+    const user = await User.create({ name: String(name).trim(), email: safeEmail, password: String(password) });
 
     // Create default settings
     await UserSettings.create({ user: user._id });
@@ -92,7 +112,12 @@ async function login(req, res, next) {
 
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email }).select('+password');
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      return sendError(res, 'Invalid email or password format', 400);
+    }
+
+    const safeEmail = String(email).trim().toLowerCase();
+    const user = await User.findOne({ email: safeEmail }).select('+password');
     if (!user) return sendError(res, 'Invalid email or password', 401);
 
     const isMatch = await user.comparePassword(password);

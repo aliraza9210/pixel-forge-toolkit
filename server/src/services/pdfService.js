@@ -11,8 +11,10 @@ const mammoth = require('mammoth');
 const Tesseract = require('tesseract.js');
 const { PROCESSED_DIR, generateFilename, registerFile } = require('./storageService');
 
+const MAX_PDF_PAGES = 1000;
+
 /**
- * Load PDF bytes into a PDFDocument
+ * Load PDF bytes into a PDFDocument with security constraints
  */
 async function loadDoc(input, options = {}) {
   let bytes;
@@ -23,7 +25,11 @@ async function loadDoc(input, options = {}) {
   } else {
     bytes = input;
   }
-  return PDFDocument.load(bytes, { ignoreEncryption: true, ...options });
+  const doc = await PDFDocument.load(bytes, { ignoreEncryption: true, ...options });
+  if (doc.getPageCount() > MAX_PDF_PAGES) {
+    throw new Error(`PDF exceeds maximum allowed page count (${MAX_PDF_PAGES} pages).`);
+  }
+  return doc;
 }
 
 /**

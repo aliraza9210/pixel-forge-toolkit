@@ -16,8 +16,22 @@ async function authenticate(req, res, next) {
     }
     if (!token) return sendError(res, 'Authentication required', 401);
 
-    const secret = process.env.JWT_SECRET || 'dev_jwt_secret_change_in_production_32char';
-    const decoded = jwt.verify(token, secret);
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      if (process.env.NODE_ENV === 'production') {
+        return sendError(res, 'Authentication system misconfigured', 500);
+      }
+    }
+    const verifiedSecret = secret || 'dev_jwt_secret_change_in_production_32char';
+    let decoded;
+    try {
+      decoded = jwt.verify(token, verifiedSecret);
+    } catch (jwtErr) {
+      if (jwtErr.name === 'TokenExpiredError') {
+        return sendError(res, 'Session token has expired', 401);
+      }
+      return sendError(res, 'Invalid session token', 401);
+    }
 
     if (!decoded?.id || !mongoose.Types.ObjectId.isValid(decoded.id)) {
       return sendError(res, 'User not found or invalid session token', 401);

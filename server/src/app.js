@@ -6,6 +6,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
+const hpp = require('hpp');
 
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const authRoutes = require('./routes/auth');
@@ -17,7 +19,24 @@ const processRoutes = require('./routes/process');
 const app = express();
 
 // ─── Security ─────────────────────────────────────────────────────────────────
-app.use(helmet());
+app.set('trust proxy', 1);
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'blob:'],
+        connectSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  })
+);
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -73,10 +92,16 @@ app.use(
   })
 );
 
-// ─── Parsers ──────────────────────────────────────────────────────────────────
+// ─── Parsers & Body Hardening ──────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser(process.env.COOKIE_SECRET));
+
+// Sanitize against NoSQL operator injection in body, query, and params
+app.use(mongoSanitize({ replaceWith: '_' }));
+
+// Protect against HTTP Parameter Pollution
+app.use(hpp());
 
 // ─── Logging ──────────────────────────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'test') {

@@ -73,13 +73,43 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 35 * 1024 * 1024, // 35 MB max per file
+    fileSize: 35 * 1024 * 1024, // 35 MB max per individual file
     files: 20, // Max 20 files for batch operations
   },
 });
 
+/**
+ * Validates total aggregated upload size across all files in request
+ * Caps aggregate payload at 100 MB to prevent resource exhaustion attacks.
+ */
+function validateTotalUploadSize(req, res, next) {
+  let totalSize = 0;
+  const maxAggregateBytes = 100 * 1024 * 1024; // 100 MB total max
+
+  const files = req.files || (req.file ? [req.file] : []);
+  for (const f of files) {
+    totalSize += f.size || 0;
+  }
+
+  if (totalSize > maxAggregateBytes) {
+    // Clean up already uploaded files from disk
+    for (const f of files) {
+      if (f.path) {
+        try { require('fs').unlinkSync(f.path); } catch (_) {}
+      }
+    }
+    return res.status(400).json({
+      success: false,
+      message: 'Aggregate upload size exceeds maximum allowed limit of 100 MB.',
+    });
+  }
+
+  next();
+}
+
 module.exports = {
   upload,
+  validateTotalUploadSize,
   ALLOWED_MIME_TYPES,
   ALLOWED_EXTENSIONS,
 };

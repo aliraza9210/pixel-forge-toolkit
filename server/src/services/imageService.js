@@ -6,14 +6,35 @@ const path = require('path');
 const archiver = require('archiver');
 const { PROCESSED_DIR, generateFilename, registerFile } = require('./storageService');
 
+// Configure safe thread concurrency for Sharp
+sharp.concurrency(Math.max(1, Math.min(4, require('os').cpus().length)));
+
+// Maximum allowed input pixel count (100 Megapixels max) to block pixel-flood decompression bombs
+const MAX_INPUT_PIXELS = 100 * 1000 * 1000;
+
+const { sanitizeSvg } = require('../utils/svgSanitizer');
+
 /**
- * Helper to get a Sharp instance from either a file path or buffer
+ * Helper to get a Sharp instance from either a file path or buffer with pixel bounds protection
  */
-function getSharp(input) {
-  if (typeof input === 'string') {
-    return sharp(input);
+function getSharp(input, options = {}) {
+  // If input is an SVG buffer or file path, sanitize before parsing if requested or if buffer
+  let processedInput = input;
+  if (Buffer.isBuffer(input)) {
+    const header = input.slice(0, 100).toString('utf8').trim().toLowerCase();
+    if (header.includes('<svg') || header.includes('<?xml')) {
+      try {
+        const cleanSvg = sanitizeSvg(input);
+        processedInput = Buffer.from(cleanSvg, 'utf8');
+      } catch (_) {}
+    }
   }
-  return sharp(input);
+
+  const mergedOptions = {
+    limitInputPixels: MAX_INPUT_PIXELS,
+    ...options,
+  };
+  return sharp(processedInput, mergedOptions);
 }
 
 /**

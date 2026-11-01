@@ -819,11 +819,22 @@ async function processAi(req, res) {
   }
 }
 
+const UUIDV4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 /**
  * Download Processed File by Token
  */
 function downloadFile(req, res) {
   const { fileToken } = req.params;
+
+  // Strict UUIDv4 format validation to prevent path injection or scanning attacks
+  if (!fileToken || typeof fileToken !== 'string' || !UUIDV4_REGEX.test(fileToken)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid download token format.',
+    });
+  }
+
   const fileData = getFileByToken(fileToken);
 
   if (!fileData) {
@@ -833,11 +844,33 @@ function downloadFile(req, res) {
     });
   }
 
-  res.setHeader('Content-Type', fileData.mimeType);
-  res.setHeader('Content-Disposition', `attachment; filename="${fileData.originalName}"`);
+  // Canonical containment verification: Ensure resolved path resides strictly inside PROCESSED_DIR or UPLOADS_DIR
+  const resolvedTarget = path.resolve(fileData.path);
+  const resolvedProcessed = path.resolve(PROCESSED_DIR);
+  const relativeFromProcessed = path.relative(resolvedProcessed, resolvedTarget);
+
+  const isContainedInProcessed =
+    !relativeFromProcessed.startsWith('..') && !path.isAbsolute(relativeFromProcessed);
+
+  if (!isContainedInProcessed) {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied: Path containment validation failed.',
+    });
+  }
+
+  if (!fs.existsSync(resolvedTarget)) {
+    return res.status(404).json({
+      success: false,
+      message: 'Physical file not found on disk.',
+    });
+  }
+
+  res.setHeader('Content-Type', fileData.mimeType || 'application/octet-stream');
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileData.originalName)}"`);
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 
-  const stream = fs.createReadStream(fileData.path);
+  const stream = fs.createReadStream(resolvedTarget);
   stream.on('error', (err) => {
     res.status(500).json({ success: false, message: 'Failed to stream file.' });
   });
@@ -849,6 +882,14 @@ function downloadFile(req, res) {
  */
 function cleanupFileEndpoint(req, res) {
   const { fileToken } = req.params;
+
+  if (!fileToken || typeof fileToken !== 'string' || !UUIDV4_REGEX.test(fileToken)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid cleanup token format.',
+    });
+  }
+
   const cleaned = cleanupFile(fileToken);
 
   if (!cleaned) {

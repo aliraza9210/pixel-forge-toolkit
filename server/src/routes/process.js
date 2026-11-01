@@ -2,7 +2,8 @@
 
 const express = require('express');
 const router = express.Router();
-const { upload } = require('../middleware/upload');
+const { upload, validateTotalUploadSize } = require('../middleware/upload');
+const { validateFileContent } = require('../middleware/fileSignatureValidator');
 const {
   processImage,
   processBulkCompress,
@@ -39,14 +40,14 @@ function normalizeUploadFiles(req, res, next) {
 }
 
 // Image processing
-router.post('/image/bulk-compress', uploadFlexible, normalizeUploadFiles, processBulkCompress);
-router.post('/image/:toolId', uploadFlexible, normalizeUploadFiles, processImage);
+router.post('/image/bulk-compress', uploadFlexible, normalizeUploadFiles, validateTotalUploadSize, validateFileContent, processBulkCompress);
+router.post('/image/:toolId', uploadFlexible, normalizeUploadFiles, validateTotalUploadSize, validateFileContent, processImage);
 
 // PDF processing - supports both single-file ('file') and multi-file ('files') uploads
-router.post('/pdf/:toolId', uploadFlexible, normalizeUploadFiles, processPdf);
+router.post('/pdf/:toolId', uploadFlexible, normalizeUploadFiles, validateTotalUploadSize, validateFileContent, processPdf);
 
 // AI processing
-router.post('/ai/:toolId', uploadFlexible, normalizeUploadFiles, processAi);
+router.post('/ai/:toolId', uploadFlexible, normalizeUploadFiles, validateTotalUploadSize, validateFileContent, processAi);
 
 // Download and cleanup
 router.get('/download/:fileToken', downloadFile);
