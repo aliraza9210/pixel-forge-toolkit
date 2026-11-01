@@ -24,6 +24,20 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import toast from 'react-hot-toast';
+import { PDF_CATEGORIES } from '../data/toolsRegistry';
+
+// Document-level AI/NLP tools routed to /api/process/ai/:toolId
+const DOC_AI_TOOLS = [
+  'ai-pdf-summarizer',
+  'translate-pdf',
+  'pdf-to-markdown',
+  'ask-pdf',
+  'key-points',
+  'study-questions',
+  'outline',
+  'translate-document',
+  'summarize-pdf',
+];
 
 function formatBytes(bytes) {
   if (!bytes || bytes === 0) return '0 B';
@@ -82,15 +96,16 @@ export default function ToolWorkspaceRunner({ tool }) {
 
   const canvasRef = useRef(null);
   const apiBase = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '';
-  const isMultiple = ['bulk-compress', 'merge-pdf', 'jpg-to-pdf', 'compare-pdf'].includes(tool.id);
+  const isMultiple = ['bulk-compress', 'merge-pdf', 'jpg-to-pdf', 'images-to-pdf', 'compare-pdf', 'merge-photos', 'photo-collage'].includes(tool.id);
   const isGenerator = ['qr-code-generator', 'placeholder-image'].includes(tool.id);
-  const isTextTool = ['text-to-pdf', 'ai-pdf-summarizer'].includes(tool.id);
+  const isTextTool = ['text-to-pdf', 'ai-pdf-summarizer', 'translate-pdf', 'pdf-to-markdown', 'ask-pdf'].includes(tool.id);
 
   // Set default format based on tool
   useEffect(() => {
-    if (tool.id === 'jpg-to-png') setOptions((o) => ({ ...o, format: 'png' }));
-    else if (tool.id === 'png-to-jpg') setOptions((o) => ({ ...o, format: 'jpg' }));
+    if (tool.id === 'jpg-to-png' || tool.id === 'svg-to-png') setOptions((o) => ({ ...o, format: 'png' }));
+    else if (tool.id === 'png-to-jpg' || tool.id === 'heic-to-jpg' || tool.id === 'avif-to-jpg' || tool.id === 'gif-to-jpg' || tool.id === 'tiff-to-jpg') setOptions((o) => ({ ...o, format: 'jpg' }));
     else if (tool.id === 'webp-converter') setOptions((o) => ({ ...o, format: 'webp' }));
+    else if (tool.id === 'image-to-ico') setOptions((o) => ({ ...o, format: 'ico' }));
   }, [tool.id]);
 
   // Dropzone setup
@@ -223,22 +238,34 @@ export default function ToolWorkspaceRunner({ tool }) {
       let endpoint = '';
       if (tool.id === 'bulk-compress') {
         endpoint = `${apiBase}/api/process/image/bulk-compress`;
-      } else if (tool.category.startsWith('Image') || tool.category === 'Background & Transparency') {
-        endpoint = `${apiBase}/api/process/image/${tool.id}`;
-      } else if (tool.category.startsWith('PDF')) {
-        if (tool.id === 'ai-pdf-summarizer') {
-          endpoint = `${apiBase}/api/process/ai/${tool.id}`;
-        } else {
-          endpoint = `${apiBase}/api/process/pdf/${tool.id}`;
-        }
       } else if (tool.id === 'image-metadata') {
         endpoint = `${apiBase}/api/process/image/image-metadata`;
+      } else if (DOC_AI_TOOLS.includes(tool.id)) {
+        endpoint = `${apiBase}/api/process/ai/${tool.id}`;
+      } else if (PDF_CATEGORIES.includes(tool.category) || tool.id.includes('pdf')) {
+        endpoint = `${apiBase}/api/process/pdf/${tool.id}`;
+      } else {
+        endpoint = `${apiBase}/api/process/image/${tool.id}`;
       }
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        body: formData,
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+
+      let res;
+      try {
+        res = await fetch(endpoint, {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        });
+      } catch (fetchErr) {
+        if (fetchErr.name === 'AbortError') {
+          throw new Error('Request timed out after 60 seconds. Please try again with a smaller file or different settings.');
+        }
+        throw fetchErr;
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       clearInterval(progressTimer);
       setProgress(100);
@@ -424,19 +451,25 @@ export default function ToolWorkspaceRunner({ tool }) {
 
       {/* ─── File Upload Dropzone (for non-generator tools) ────────────────────── */}
       {!isGenerator && files.length === 0 && (
-        <div className="space-y-4">
-          <div
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-4"
+        >
+          <motion.div
             {...getRootProps()}
-            className={`border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer flex flex-col items-center justify-center ${
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            className={`border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer flex flex-col items-center justify-center relative overflow-hidden ${
               isDragActive
-                ? 'border-[var(--accent-lime)] bg-[var(--accent-lime-glow)] shadow-lg'
+                ? 'border-[var(--accent-lime)] bg-[var(--accent-lime-glow)] shadow-glow ring-2 ring-lime-400/30'
                 : 'border-[var(--border-medium)] hover:border-[var(--accent-lime)] bg-[var(--bg-card)]'
             }`}
             style={{ minHeight: '260px' }}
           >
             <input {...getInputProps()} />
             <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-105"
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 shadow-sm"
               style={{ background: `${tool.color}15`, border: `1px solid ${tool.color}35` }}
             >
               <Upload className="w-8 h-8" style={{ color: tool.color }} />
@@ -459,7 +492,7 @@ export default function ToolWorkspaceRunner({ tool }) {
                 </span>
               ))}
             </div>
-          </div>
+          </motion.div>
 
           {/* Optional Textarea for text-based tools */}
           {isTextTool && (
@@ -485,7 +518,7 @@ export default function ToolWorkspaceRunner({ tool }) {
               )}
             </div>
           )}
-        </div>
+        </motion.div>
       )}
 
       {/* ─── Selected File(s) & Tool Workspace Controls ───────────────────────── */}
@@ -548,7 +581,7 @@ export default function ToolWorkspaceRunner({ tool }) {
             </h3>
 
             {/* Resize Image */}
-            {tool.id === 'resize-image' && (
+            {['resize-image', 'a4-resize', 'resize-35x45mm', 'resize-2x2inch', 'resize-4x6', 'wallet-size-photo', 'passport-size-photo', 'instagram-crop', 'pan-card-photo', 'ssc-upsc-photo', 'signature-resize', 'whatsapp-dp'].includes(tool.id) && (
               <div className="grid sm:grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-muted block mb-1">Target Width (px)</label>
@@ -586,7 +619,7 @@ export default function ToolWorkspaceRunner({ tool }) {
             )}
 
             {/* Rotate & Flip */}
-            {tool.id === 'rotate-image' && (
+            {['rotate-image', 'flip-image'].includes(tool.id) && (
               <div className="flex flex-wrap gap-3">
                 {[
                   { label: 'Rotate 90° CW', angle: 90, flipH: false, flipV: false },
@@ -619,7 +652,7 @@ export default function ToolWorkspaceRunner({ tool }) {
             )}
 
             {/* Watermark */}
-            {tool.id === 'watermark-image' && (
+            {['watermark-image', 'add-watermark-pdf'].includes(tool.id) && (
               <div className="grid sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2">
                   <label className="text-xs font-semibold text-muted block mb-1">Watermark Text</label>
@@ -646,7 +679,7 @@ export default function ToolWorkspaceRunner({ tool }) {
             )}
 
             {/* Remove Background Settings */}
-            {tool.id === 'remove-background' && (
+            {['remove-background', 'transparent-png', 'remove-white-bg'].includes(tool.id) && (
               <div className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
@@ -898,17 +931,24 @@ export default function ToolWorkspaceRunner({ tool }) {
 
       {/* ─── Processing Progress Bar ──────────────────────────────────────────── */}
       {processing && (
-        <div className="card-depth p-6 text-center space-y-3">
-          <RefreshCw className="w-8 h-8 text-lime-400 animate-spin mx-auto" />
-          <h4 className="text-base font-bold">Processing Document...</h4>
-          <p className="text-xs text-muted">Applying transformations with cryptographic precision.</p>
-          <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden max-w-md mx-auto">
-            <div
-              className="bg-lime-400 h-2 rounded-full transition-all duration-300"
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="card-depth p-8 text-center space-y-4 relative overflow-hidden shadow-glow"
+        >
+          <div className="relative inline-block">
+            <RefreshCw className="w-10 h-10 text-lime-400 animate-spin mx-auto" />
+            <Sparkles className="w-4 h-4 text-sky-400 absolute -top-1 -right-1 animate-pulse" />
+          </div>
+          <h4 className="text-lg font-bold">Processing {tool.name}...</h4>
+          <p className="text-xs text-muted">Applying native transformations with precision.</p>
+          <div className="w-full bg-white/10 rounded-full h-2.5 overflow-hidden max-w-md mx-auto shadow-inner">
+            <motion.div
+              className="bg-gradient-to-r from-lime-400 via-sky-400 to-indigo-500 h-2.5 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* ─── Error Notification ───────────────────────────────────────────────── */}

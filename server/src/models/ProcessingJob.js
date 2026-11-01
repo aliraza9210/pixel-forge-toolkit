@@ -49,5 +49,7 @@ const processingJobSchema = new mongoose.Schema(
 
 processingJobSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 processingJobSchema.index({ user: 1, createdAt: -1 });
+processingJobSchema.index({ toolId: 1, createdAt: -1 });
+processingJobSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = mongoose.model('ProcessingJob', processingJobSchema);

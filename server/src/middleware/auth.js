@@ -1,5 +1,6 @@
 'use strict';
 
+const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { sendError } = require('../utils/response');
@@ -9,10 +10,23 @@ const { sendError } = require('../utils/response');
  */
 async function authenticate(req, res, next) {
   try {
-    const token = req.cookies?.pixelforge_token;
+    let token = req.cookies?.pixelforge_token;
+    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
     if (!token) return sendError(res, 'Authentication required', 401);
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const secret = process.env.JWT_SECRET || 'dev_jwt_secret_change_in_production_32char';
+    const decoded = jwt.verify(token, secret);
+
+    if (!decoded?.id || !mongoose.Types.ObjectId.isValid(decoded.id)) {
+      return sendError(res, 'User not found or invalid session token', 401);
+    }
+
+    if (mongoose.connection.readyState !== 1) {
+      return sendError(res, 'Database connection offline', 503);
+    }
+
     const user = await User.findById(decoded.id).select('-password');
     if (!user) return sendError(res, 'User not found', 401);
     if (user.status !== 'active') return sendError(res, 'Account is not active', 403);

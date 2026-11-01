@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import ToolCard from '../components/ToolCard';
 import SearchBar from '../components/SearchBar';
+import ThreeCanvasBackground from '../components/ThreeCanvasBackground';
+import Hero3DVisual from '../components/Hero3DVisual';
 import { TOOLS, POPULAR_TOOLS, CATEGORIES, TOOLS_BY_CATEGORY, searchTools } from '../data/toolsRegistry';
 
 // ─── Animation variants ────────────────────────────────────────────────────────
@@ -51,6 +53,9 @@ function HeroSection() {
 
   return (
     <div className="relative min-h-[92vh] flex items-center pt-20 overflow-hidden">
+      {/* 3D WebGL Particle & Geometric Mesh Canvas */}
+      <ThreeCanvasBackground />
+
       {/* Background ambient glows adapting to active theme */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div
@@ -176,7 +181,7 @@ function HeroSection() {
 
         {/* CTAs */}
         <motion.div
-          className="flex flex-wrap gap-3.5 justify-center mb-12"
+          className="flex flex-wrap gap-3.5 justify-center mb-8"
           variants={fadeUp} initial="hidden" animate="visible" custom={5}
         >
           <Link to="/tools" className="btn-primary px-7 py-3 text-base shadow-lg">
@@ -185,6 +190,17 @@ function HeroSection() {
           <Link to="/image-tools" className="btn-secondary px-6 py-3 text-base">
             Try Image Tools
           </Link>
+        </motion.div>
+
+        {/* 3D Interactive Floating Showcase */}
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          custom={5.5}
+          className="my-6 max-w-lg mx-auto"
+        >
+          <Hero3DVisual />
         </motion.div>
 
         {/* Quick Highlights Strip */}
@@ -248,7 +264,7 @@ function PopularToolsSection() {
 // ─── Category Sections ────────────────────────────────────────────────────────
 const SHOWCASE_CATEGORIES = [
   { key: 'Image Editing', icon: Image, label: 'Image Tools', link: '/image-tools' },
-  { key: 'PDF Organization', icon: FileText, label: 'PDF Tools', link: '/pdf-tools' },
+  { key: 'Organize PDF', icon: FileText, label: 'PDF Tools', link: '/pdf-tools' },
   { key: 'PDF Intelligence', icon: Sparkles, label: 'AI Tools', link: '/ai-tools' },
 ];
 

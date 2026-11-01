@@ -12,15 +12,29 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/bmp',
   'image/tiff',
   'image/avif',
+  'image/svg+xml',
+  'image/x-icon',
+  'image/vnd.microsoft.icon',
+  'image/heic',
+  'image/heif',
   'application/pdf',
   'text/plain',
   'text/markdown',
+  'text/html',
+  'text/csv',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-powerpoint',
 ]);
 
 const ALLOWED_EXTENSIONS = new Set([
   '.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff', '.avif',
-  '.pdf', '.txt', '.md', '.docx',
+  '.svg', '.ico', '.heic', '.heif',
+  '.pdf', '.txt', '.md', '.html', '.htm', '.csv',
+  '.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt',
 ]);
 
 const storage = multer.diskStorage({

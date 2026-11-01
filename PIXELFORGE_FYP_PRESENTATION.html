@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PixelForge — 3D FYP Defense & Project Presentation</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
+
+    :root {
+      --lime: #a3e635;
+      --sky: #38bdf8;
+      --indigo: #6366f1;
+      --purple: #a855f7;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #06070a;
+      color: #f8fafc;
+      font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* 3D Scene Geometry & Viewport */
+    .scene-viewport {
+      perspective: 1600px;
+      perspective-origin: 50% 50%;
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .world-3d {
+      position: absolute;
+      width: 1000px;
+      height: 640px;
+      transform-style: preserve-3d;
+      transition: transform 0.9s cubic-bezier(0.2, 0.9, 0.25, 1);
+    }
+
+    /* 3D Slide Base */
+    .slide-3d {
+      position: absolute;
+      width: 1000px;
+      height: 640px;
+      left: 0;
+      top: 0;
+      transform-style: preserve-3d;
+      backface-visibility: hidden;
+      border-radius: 28px;
+      background: radial-gradient(circle at top left, rgba(22, 27, 46, 0.94), rgba(10, 12, 19, 0.97));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8),
+                  0 0 40px rgba(163, 230, 53, 0.05),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      padding: 40px 48px;
+      transition: opacity 0.6s ease, filter 0.6s ease, border-color 0.4s ease;
+      cursor: pointer;
+    }
+
+    .slide-3d.active {
+      opacity: 1 !important;
+      filter: blur(0px) brightness(1) !important;
+      border-color: rgba(163, 230, 53, 0.4);
+      box-shadow: 0 30px 100px -15px rgba(0, 0, 0, 0.9),
+                  0 0 60px rgba(163, 230, 53, 0.12),
+                  inset 0 1px 1px rgba(255, 255, 255, 0.2);
+      cursor: default;
+    }
+
+    .slide-3d.inactive {
+      opacity: 0.25;
+      filter: blur(3px) brightness(0.6);
+      pointer-events: auto;
+    }
+
+    .slide-3d.inactive:hover {
+      opacity: 0.5;
+      filter: blur(1px) brightness(0.85);
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+
+    /* Z-Depth Layering for Realistic Holographic Pop-out */
+    .z-back { transform: translateZ(-20px); }
+    .z-base { transform: translateZ(0px); }
+    .z-mid { transform: translateZ(35px); }
+    .z-high { transform: translateZ(70px); }
+    .z-top { transform: translateZ(105px); }
+
+    .preserve-3d {
+      transform-style: preserve-3d;
+    }
+
+    /* Interactive Holographic Card */
+    .holo-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .holo-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 60%);
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    .holo-card:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(163, 230, 53, 0.35);
+      box-shadow: 0 15px 35px -10px rgba(163, 230, 53, 0.15);
+      transform: translateZ(45px) translateY(-3px);
+    }
+
+    /* Subtle Animated Glow */
+    @keyframes neonGlowPulse {
+      0%, 100% { opacity: 0.35; transform: scale(1); }
+      50% { opacity: 0.65; transform: scale(1.05); }
+    }
+    .neon-pulse {
+      animation: neonGlowPulse 4s infinite ease-in-out;
+    }
+
+    @keyframes float3D {
+      0%, 100% { transform: translateZ(60px) translateY(0px) rotateX(0deg); }
+      50% { transform: translateZ(75px) translateY(-8px) rotateX(2deg); }
+    }
+    .animate-float-3d {
+      animation: float3D 5s infinite ease-in-out;
+    }
+
+    /* 3D Floor Perspective Grid */
+    .cyber-floor {
+      position: absolute;
+      width: 3000px;
+      height: 3000px;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) translateY(450px) rotateX(90deg);
+      background-image: 
+        linear-gradient(rgba(163, 230, 53, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(163, 230, 53, 0.1) 1px, transparent 1px);
+      background-size: 80px 80px;
+      mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    /* Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(163,230,53,0.3); border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-[#06070a] text-slate-100 flex flex-col justify-between select-none">
+
+  <!-- Interactive 3D Canvas Background (Starfield + Rotating Wireframe Polyhedra) -->
+  <canvas id="bgCanvas3D" class="fixed inset-0 pointer-events-none z-0"></canvas>
+
+  <!-- Top Glass HUD / Header -->
+  <header class="relative z-30 w-full px-6 py-3.5 flex items-center justify-between border-b border-white/10 bg-[#0a0c13]/85 backdrop-blur-md">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#a3e635] via-[#38bdf8] to-[#818cf8] flex items-center justify-center font-black text-black text-xl shadow-lg shadow-lime-500/25">
+        P
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-sm font-bold tracking-tight text-white">PixelForge</h1>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/20 font-semibold tracking-wider">
+            3D FYP DEFENSE
+          </span>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-sky-400/10 text-sky-400 border border-sky-400/20 hidden sm:inline-block">
+            MERN + C++ LIBVIPS
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-400">High-Performance All-in-One Digital Asset Engineering Suite</p>
+      </div>
+    </div>
+
+    <!-- Central 3D Mode & Camera Controls -->
+    <div class="flex items-center gap-2">
+      <!-- 3D View Mode Toggle -->
+      <button onclick="toggle3DOrbitView()" id="btnOrbitView" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-xs flex items-center gap-1.5 transition-all">
+        <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+        <span id="txtOrbitView">3D Ring View</span>
+      </button>
+
+      <!-- Audio Toggle -->
+      <button onclick="toggleSound()" id="btnSound" class="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-xs transition-all" title="Toggle 3D Audio FX">
+        <svg id="iconSoundOn" class="w-3.5 h-3.5 text-lime-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+      </button>
+
+      <!-- Speaker Notes -->
+      <button onclick="toggleSpeakerNotes()" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-xs flex items-center gap-1.5 transition-all" title="Speaker Viva Defense Notes">
+        <svg class="w-3.5 h-3.5 text-lime-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+        <span>Viva Notes</span>
+      </button>
+
+      <!-- Slide Counter -->
+      <span class="text-xs font-mono text-lime-400 font-bold bg-lime-950/70 px-3 py-1.5 rounded-xl border border-lime-500/30" id="slideCounter">
+        01 / 09
+      </span>
+
+      <!-- Fullscreen -->
+      <button onclick="toggleFullscreen()" class="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-xs transition-all" title="Fullscreen">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0 0l-5-5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Progress Bar Top Line -->
+  <div class="relative z-30 w-full bg-white/5 h-1">
+    <div class="h-1 bg-gradient-to-r from-lime-400 via-sky-400 to-indigo-500 transition-all duration-500" id="progressBar" style="width: 11.11%;"></div>
+  </div>
+
+  <!-- 3D Spatial Scene Container -->
+  <div class="scene-viewport relative z-10" id="sceneViewport">
+    
+    <!-- 3D Cyber Horizon Grid Floor -->
+    <div class="cyber-floor"></div>
+
+    <!-- 3D Carousel Cylinder World -->
+    <div class="world-3d" id="world3D">
+
+      <!-- ═════════════════════════════════════════════════════════════════════
+           SLIDE 1: Title & Hero
+      ══════════════════════════════════════════════════════════════════════ -->
+      <div class="slide-3d preserve-3d" data-slide-index="0" onclick="onSlideClick(0)">
+        <div class="flex flex-col justify-between h-full preserve-3d">
+          
+          <!-- Top Badge -->
+          <div class="flex items-center justify-between z-top">
+            <div class="inline-flex items-center gap-2 text-xs font-semibold px-4 py-1.5 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/30 shadow-lg shadow-lime-500/10">
+              <span class="w-2 h-2 rounded-full bg-lime-400 animate-ping"></span>
+              Final Year Project (FYP) Capstone Defense • BS Computer Science
+            </div>
+            <div class="text-[11px] font-mono text-slate-400">
+              Session 2022–2026 • Verified Production Build
+            </div>
+          </div>
+
+          <!-- Hero Main Content with 3D Depth Layers -->
+          <div class="text-center my-auto preserve-3d py-4">
+            <h1 class="text-5xl font-black tracking-tight mb-4 leading-tight z-top">
+              Next-Generation <br>
+              <span class="bg-gradient-to-r from-[#a3e635] via-[#38bdf8] to-[#818cf8] bg-clip-text text-transparent">
+                Digital Asset Platform
+              </span>
+            </h1>
+
+            <p class="text-base text-slate-300 max-w-2xl mx-auto mb-8 leading-relaxed z-mid">
+              A high-throughput, privacy-first MERN architecture unifying <span class="text-lime-400 font-bold">114+ production tools</span> for image transformation, vector PDF engineering, and document AI.
+            </p>
+
+            <!-- 4 Metric Cards with 3D Hover Pop -->
+            <div class="grid grid-cols-4 gap-4 max-w-4xl mx-auto preserve-3d">
+              <div class="holo-card p-4 z-mid">
+                <p class="text-3xl font-black text-lime-400">114+</p>
+                <p class="text-xs text-slate-300 font-semibold mt-1">Tools Built</p>
+                <p class="text-[10px] text-slate-500 font-mono mt-0.5">88 Active • 26 Coming Soon</p>
+              </div>
+              <div class="holo-card p-4 z-mid">
+                <p class="text-3xl font-black text-sky-400">5x Faster</p>
+                <p class="text-xs text-slate-300 font-semibold mt-1">Sharp Engine</p>
+                <p class="text-[10px] text-slate-500 font-mono mt-0.5">Native libvips Multi-Thread</p>
+              </div>
+              <div class="holo-card p-4 z-mid">
+                <p class="text-3xl font-black text-indigo-400">60 Min</p>
+                <p class="text-xs text-slate-300 font-semibold mt-1">Auto-Purge</p>
+                <p class="text-[10px] text-slate-500 font-mono mt-0.5">Zero-Trust Ephemeral TTL</p>
+              </div>
+              <div class="holo-card p-4 z-mid">
+                <p class="text-3xl font-black text-emerald-400">100% Free</p>
+                <p class="text-xs text-slate-300 font-semibold mt-1">Zero Paywalls</p>
+                <p class="text-[10px] text-slate-500 font-mono mt-0.5">No Subscriptions • No Ads</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Footer -->
+          <div class="flex items-center justify-between border-t border-white/10 pt-4 text-xs text-slate-400 font-mono z-mid">
+            <div>
+              Engineer: <strong class="text-white">Muhammad Ali Raza</strong>
+            </div>
+            <div class="flex items-center gap-3">
+              <span>Stack: <strong class="text-lime-400">React 19 + Express + Sharp + PDF-Lib</strong></span>
+              <span>•</span>
+              <span>Defense Status: <strong class="text-emerald-400">Ready</strong></span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ═════════════════════════════════════════════════════════════════════
+           SLIDE 2: The Core Problem
+      ══════════════════════════════════════════════════════════════════════ -->
+      <div class="slide-3d preserve-3d" data-slide-index="1" onclick="onSlideClick(1)">
+        <div class="flex flex-col justify-between h-full preserve-3d">
+          
+          <div class="z-top">
+            <span class="text-xs font-mono font-bold uppercase tracking-wider text-rose-400 bg-rose-500/10 px-3 py-1 rounded-md border border-rose-500/20">The Problem</span>
+            <h2 class="text-3xl font-extrabold mt-2 text-white">The Fragmentation of Online Utilities</h2>
+            <p class="text-slate-400 text-xs">Why existing web utilities (iLovePDF, TinyPNG, CloudConvert) fail modern developers and consumers.</p>
+          </div>
+
+          <!-- 4 Problem Pillars with 3D Depth -->
+          <div class="grid grid-cols-2 gap-4 my-auto preserve-3d">
+            <div class="holo-card p-5 border-rose-500/20 z-mid">
+              <div class="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold mb-3">1</div>
+              <h3 class="text-sm font-bold text-white mb-1.5">Extreme Ecosystem Fragmentation</h3>
+              <p class="text-xs text-slate-300 leading-relaxed">
+                Users are forced to navigate 4–6 single-purpose websites daily: iLovePDF for merging, TinyPNG for compression, Remove.bg for cutouts, and CloudConvert for file types. No cohesive, privacy-preserving workflow exists.
+              </p>
+            </div>
+
+            <div class="holo-card p-5 border-amber-500/20 z-mid">
+              <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold mb-3">2</div>
+              <h3 class="text-sm font-bold text-white mb-1.5">Aggressive Paywalls & Throttling</h3>
+              <p class="text-xs text-slate-300 leading-relaxed">
+                Platforms like SmallPDF and iLovePDF aggressively restrict free tiers to only 2 tasks per day or cap uploads at 5MB, locking basic OCR, high-resolution conversions, and document editing behind $7–$12/month subscription paywalls.
+              </p>
+            </div>
+
+            <div class="holo-card p-5 border-purple-500/20 z-mid">
+              <div class="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold mb-3">3</div>
+              <h3 class="text-sm font-bold text-white mb-1.5">Confidential Data Retention Risks</h3>
+              <p class="text-xs text-slate-300 leading-relaxed">
+                Proprietary cloud converters store confidential financial, legal, and academic documents on remote servers indefinitely without cryptographic lifecycle guarantees or verifiable manual deletion options.
+              </p>
+            </div>
+
+            <div class="holo-card p-5 border-orange-500/20 z-mid">
+              <div class="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center font-bold mb-3">4</div>
+              <h3 class="text-sm font-bold text-white mb-1.5">Intrusive Ads & Security Traps</h3>
+              <p class="text-xs text-slate-300 leading-relaxed">
+                Heavy ad networks, deceptive download banners, tracking cookies, and 15+ external redirect scripts degrade browser performance and expose users to accidental malware downloads and credential leaks.
+              </p>
+            </div>
+          </div>
+
+          <div class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 flex items-center justify-between z-base font-mono">
+            <span>Critical Industry Flaw:</span>
+            <span>Commercial utility sites prioritize subscription conversion over data sovereignty and user privacy.</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ═════════════════════════════════════════════════════════════════════
+           SLIDE 3: The PixelForge Solution
+      ══════════════════════════════════════════════════════════════════════ -->
+      <div class="slide-3d preserve-3d" data-slide-index="2" onclick="onSlideClick(2)">
+        <div class="flex flex-col justify-between h-full preserve-3d">
+          
+          <div class="z-top">
+            <span class="text-xs font-mono font-bold uppercase tracking-wider text-lime-400 bg-lime-500/10 px-3 py-1 rounded-md border border-lime-500/20">The Solution</span>
+            <h2 class="text-3xl font-extrabold mt-2 text-white">PixelForge: The Unified All-in-One Paradigm</h2>
+            <p class="text-slate-400 text-xs">Engineering an open, high-speed ecosystem where all image, PDF, and AI operations execute seamlessly in one platform.</p>
+          </div>
+
+          <!-- 3 Solution Pillars with 3D Depth -->
+          <div class="grid grid-cols-3 gap-4 my-auto preserve-3d">
+            <div class="holo-card p-6 border-lime-500/30 z-high">
+              <div class="w-12 h-12 rounded-2xl bg-lime-400/20 border border-lime-400/40 text-lime-400 flex items-center justify-center mb-4 text-2xl font-black">
+                114+
+              </div>
+              <h3 class="text-base font-bold text-white mb-2">Unified 114+ Suite</h3>
+              <p class="text-xs text-slate-300 leading-relaxed">
+                Eliminates tab-switching. Combines 62 Image tools, 19 PDF utilities, 3 Document AI engines, 7 Social Media converters, and Developer tools under one single, unified web interface.
+              </p>
+              <div class="mt-4 pt-3 border-t border-white/10 text-[10px] font-mono text-lime-400">
+                ✓ Full workflow continuity
+              </div>
+            </div>
+
+            <div class="holo-card p-6 border-sky-500/30 z-high">
+              <div class="w-12 h-12 rounded-2xl bg-sky-400/20 border border-sky-400/40 text-sky-400 flex items-center justify-center mb-4 text-2xl font-black">
+                60m
+              </div>
+              <h3 class="text-base font-bold text-white mb-2">Zero-Trust Ephemeral Privacy</h3>
+              <p class="text-xs text-slate-300 leading-relaxed">
+                Files are processed with unguessable cryptographic UUIDv4 tokens and automatically purged after 60 minutes. An immediate 1-click manual destruction button provides instant control.
+              </p>
+              <div class="mt-4 pt-3 border-t border-white/10 text-[10px] font-mono text-sky-400">
+                ✓ Zero persistent tracking
+              </div>
+            </div>
+
+            <div class="holo-card p-6 border-indigo-500/30 z-high">
+              <div class="w-12 h-12 rounded-2xl bg-indigo-400/20 border border-indigo-400/40 text-indigo-400 flex items-center justify-center mb-4 text-2xl font-black">
+                ⚡
+              </div>
+              <h3 class="text-base font-bold text-white mb-2">Native C++ Engine Speed</h3>
+              <p class="text-xs text-slate-300 leading-relaxed">
+                Replaces slow interpreted scripts with compiled libvips native threads via Sharp and vector PDF manipulation via PDF-Lib, slashing conversion latency to under 120ms.
+              </p>
+              <div class="mt-4 pt-3 border-t border-white/10 text-[10px] font-mono text-indigo-400">
+                ✓ Multi-threaded parallel processing
+              </div>
+            </div>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-lime-400/10 border border-lime-400/20 flex items-center justify-between text-xs z-base">
+            <span class="text-slate-300 font-medium">Core Value Proposition:</span>
+            <span class="text-lime-400 font-mono font-semibold">Zero Accounts • Zero Credit Cards • Unlimited Batches • 100% Free Forever</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ═════════════════════════════════════════════════════════════════════
+           SLIDE 4: MERN Technical Architecture
+      ══════════════════════════════════════════════════════════════════════ -->
+      <div class="slide-3d preserve-3d" data-slide-index="3" onclick="onSlideClick(3)">
+        <div class="flex flex-col justify-between h-full preserve-3d">
+          
+          <div class="z-top">
+            <span class="text-xs font-mono font-bold uppercase tracking-wider text-sky-400 bg-sky-500/10 px-3 py-1 rounded-md border border-sky-500/20">Technical Architecture</span>
+            <h2 class="text-3xl font-extrabold mt-2 text-white">Full-Stack MERN + Native C++ Processing Tier</h2>
+            <p class="text-slate-400 text-xs">Architected for horizontal scale, low memory footprint, and thread-safe file handling.</p>
+          </div>
+
+          <!-- 4 Stack Tiers -->
+          <div class="grid grid-cols-4 gap-3.5 my-auto preserve-3d">
+            <!-- Client Tier -->
+            <div class="holo-card p-4.5 border-lime-400/20 z-mid">
+              <div class="flex items-center gap-2 text-lime-400 font-bold text-xs mb-2">
+                <span class="w-2 h-2 rounded-full bg-lime-400"></span> React 19 + Vite 8
+              </div>
+              <p class="text-slate-300 text-[11px] mb-3">Modern reactive frontend client with route-based code-splitting.</p>
+              <ul class="space-y-1.5 text-slate-400 text-[11px]">
+                <li>• Framer Motion 14 (3D Physics)</li>
+                <li>• Three.js WebGL Particle Scene</li>
+                <li>• Zustand Lightweight State</li>
+                <li>• Initial Bundle: Only 24 kB</li>
+              </ul>
+            </div>
+
+            <!-- API Gateway -->
+            <div class="holo-card p-4.5 border-sky-400/20 z-mid">
+              <div class="flex items-center gap-2 text-sky-400 font-bold text-xs mb-2">
+                <span class="w-2 h-2 rounded-full bg-sky-400"></span> Express 4 API Gateway
+              </div>
+              <p class="text-slate-300 text-[11px] mb-3">Robust REST backend with security and normalization middleware.</p>
+              <ul class="space-y-1.5 text-slate-400 text-[11px]">
+                <li>• Strict CORS Whitelist</li>
+                <li>• Multer Flexible Field Normalizer</li>
+                <li>• Rate Limiting (200 req/15min)</li>
+                <li>• Helmet HTTP Security Headers</li>
+              </ul>
+            </div>
+
+            <!-- Native Engines -->
+            <div class="holo-card p-4.5 border-purple-400/20 z-mid">
+              <div class="flex items-center gap-2 text-purple-400 font-bold text-xs mb-2">
+                <span class="w-2 h-2 rounded-full bg-purple-400"></span> Native Engines
+              </div>
+              <p class="text-slate-300 text-[11px] mb-3">High-throughput compiled binary processors.</p>
+              <ul class="space-y-1.5 text-slate-400 text-[11px]">
+                <li>• Sharp 0.35 (libvips multi-thread)</li>
+                <li>• PDF-Lib (Vector DOM manipulation)</li>
+                <li>• Mammoth (DOCX AST Parser)</li>
+                <li>• Tesseract.js (Neural OCR Engine)</li>
+              </ul>
+            </div>
+
+            <!-- Persistence -->
+            <div class="holo-card p-4.5 border-emerald-400/20 z-mid">
+              <div class="flex items-center gap-2 text-emerald-400 font-bold text-xs mb-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Dual Persistence
+              </div>
+              <p class="text-slate-300 text-[11px] mb-3">Fault-tolerant dual persistence layer.</p>
+              <ul class="space-y-1.5 text-slate-400 text-[11px]">
+                <li>• MongoDB 8 (TTL 24h Purge Index)</li>
+                <li>• Standalone Resilient Storage Mode</li>
+                <li>• Atomic Disk Token Registry</li>
+                <li>• Multi-Worker Cluster Sync</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-black/50 border border-white/10 font-mono text-[11px] text-slate-300 flex items-center justify-between z-base">
+            <span class="text-slate-400">Streaming Lifecycle:</span>
+            <span>Client (FormData) ➔ Multer Normalizer ➔ Sharp / PDF-Lib Native Buffer ➔ UUIDv4 Token ➔ Auto-Purge (60m)</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ═════════════════════════════════════════════════════════════════════
+           SLIDE 5: Processing Pipeline & Privacy Model
+      ══════════════════════════════════════════════════════════════════════ -->
+      <div class="slide-3d preserve-3d" data-slide-index="4" onclick="onSlideClick(4)">
+        <div class="flex flex-col justify-between h-full preserve-3d">
+          
+          <div class="z-top">
+            <span class="text-xs font-mono font-bold uppercase tracking-wider text-purple-400 bg-purple-500/10 px-3 py-1 rounded-md border border-purple-500/20">Operational Lifecycle</span>
+            <h2 class="text-3xl font-extrabold mt-2 text-white">End-to-End Processing & Zero-Trust Privacy</h2>
+            <p class="text-slate-400 text-xs">How PixelForge handles digital assets from initial browser drop to cryptographic destruction.</p>
+          </div>
+
+          <!-- 4 Lifecycle Steps -->
+          <div class="space-y-3.5 my-auto preserve-3d">
+            <div class="holo-card p-4 flex items-center gap-4 z-mid">
+              <span class="w-9 h-9 rounded-xl bg-lime-400/20 text-lime-400 font-bold flex items-center justify-center shrink-0 text-sm font-mono">01</span>
+              <div>
+                <h4 class="text-sm font-bold text-white">Client-Side Intake & MIME Verification</h4>
+                <p class="text-xs text-slate-400 mt-0.5">Drag-and-drop zone verifies MIME magic numbers and file extensions (JPG, PNG, WebP, PDF, DOCX) before network transmission.</p>
+              </div>
+            </div>
+
+            <div class="holo-card p-4 flex items-center gap-4 z-mid">
+              <span class="w-9 h-9 rounded-xl bg-sky-400/20 text-sky-400 font-bold flex items-center justify-center shrink-0 text-sm font-mono">02</span>
+              <div>
+                <h4 class="text-sm font-bold text-white">Normalized Stream Ingestion</h4>
+                <p class="text-xs text-slate-400 mt-0.5">Multer normalizer accepts single ('file') and multi-file ('files') form payloads seamlessly, preventing unexpected field crashes.</p>
+              </div>
+            </div>
+
+            <div class="holo-card p-4 flex items-center gap-4 z-mid">
+              <span class="w-9 h-9 rounded-xl bg-purple-400/20 text-purple-400 font-bold flex items-center justify-center shrink-0 text-sm font-mono">03</span>
+              <div>
+                <h4 class="text-sm font-bold text-white">Native Multi-Threaded In-Memory Buffers</h4>
+                <p class="text-xs text-slate-400 mt-0.5">Files are transformed directly in native memory buffers via libvips or PDF-Lib without spawning external system shell processes.</p>
+              </div>
+            </div>
+
+            <div class="holo-card p-4 flex items-center gap-4 z-mid">
+              <span class="w-9 h-9 rounded-xl bg-emerald-400/20 text-emerald-400 font-bold flex items-center justify-center shrink-0 text-sm font-mono">04</span>
+              <div>
+                <h4 class="text-sm font-bold text-white">UUIDv4 Ephemeral Token & 60-Minute Purge</h4>
+                <p class="text-xs text-slate-400 mt-0.5">Outputs receive an unguessable UUID token written to atomic disk registry. Daemon deletes files after 60 mins or upon instant manual user trigger.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300 flex items-center justify-between z-base font-mono">
+            <span>Privacy Guarantee:</span>
+            <span>No user files are ever stored on cloud data lakes or used for machine learning model training.</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ═════════════════════════════════════════════════════════════════════
+           SLIDE 6: Feature Suites Overview
+      ══════════════════════════════════════════════════════════════════════ -->
+      <div class="slide-3d preserve-3d" data-slide-index="5" onclick="onSlideClick(5)">
+        <div class="flex flex-col justify-between h-full preserve-3d">
+          
+          <div class="z-top">
+            <span class="text-xs font-mono font-bold uppercase tracking-wider text-lime-400 bg-lime-500/10 px-3 py-1 rounded-md border border-lime-500/20">Capabilities Matrix</span>
+            <h2 class="text-3xl font-extrabold mt-2 text-white">Core Feature Suites (88 Active Tools)</h2>
+            <p class="text-slate-400 text-xs">Engineered across three major digital asset operational domains.</p>
+          </div>
+
+          <!-- 3 Tool Categories -->
+          <div class="grid grid-cols-3 gap-4 my-auto preserve-3d">
+            <!-- Image Suite -->
+            <div class="holo-card p-5 border-lime-400/30 z-mid">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-base font-bold text-lime-400">Image Suite</h3>
+                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-lime-400/10 text-lime-400 font-bold">62 Tools</span>
+              </div>
+              <ul class="space-y-2 text-xs text-slate-300">
+                <li class="flex items-center gap-2"><span class="text-lime-400">✓</span> Universal Conversions (WebP, JPG, PNG, AVIF, HEIC, SVG)</li>
+                <li class="flex items-center gap-2"><span class="text-lime-400">✓</span> Bulk Compression with ZIP archive generation</li>
+                <li class="flex items-center gap-2"><span class="text-lime-400">✓</span> AI Edge Background Removal & Replacement</li>
+                <li class="flex items-center gap-2"><span class="text-lime-400">✓</span> Official Passport (35x45mm, 2x2") & SSC/UPSC Resize</li>
+                <li class="flex items-center gap-2"><span class="text-lime-400">✓</span> Social Media Presets (YouTube, Instagram 9-Grid, X)</li>
+              </ul>
+            </div>
+
+            <!-- PDF Suite -->
+            <div class="holo-card p-5 border-sky-400/30 z-mid">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-base font-bold text-sky-400">PDF Engineering</h3>
+                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-sky-400/10 text-sky-400 font-bold">19 Tools</span>
+              </div>
+              <ul class="space-y-2 text-xs text-slate-300">
+                <li class="flex items-center gap-2"><span class="text-sky-400">✓</span> High-Performance Merge, Split & Range Extract</li>
+                <li class="flex items-center gap-2"><span class="text-sky-400">✓</span> Page Reordering & Selective Page Deletion</li>
+                <li class="flex items-center gap-2"><span class="text-sky-400">✓</span> Password Encryption, Decryption & Permissions</li>
+                <li class="flex items-center gap-2"><span class="text-sky-400">✓</span> Bi-Directional Word to PDF & PDF to DOCX</li>
+                <li class="flex items-center gap-2"><span class="text-sky-400">✓</span> Vector Redaction & Watermark Overlay</li>
+              </ul>
+            </div>
+
+            <!-- AI & Smart Utilities -->
+            <div class="holo-card p-5 border-indigo-400/30 z-mid">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-base font-bold text-indigo-400">AI & Utilities</h3>
+                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-indigo-400/10 text-indigo-400 font-bold">7 Tools</span>
+              </div>
+              <ul class="space-y-2 text-xs text-slate-300">
+                <li class="flex items-center gap-2"><span class="text-indigo-400">✓</span> Tesseract.js Optical Character Recognition (OCR)</li>
+                <li class="flex items-center gap-2"><span class="text-indigo-400">✓</span> AI PDF Summarizer & Bullet-Point Synthesizer</li>
+                <li class="flex items-center gap-2"><span class="text-indigo-400">✓</span> Multi-Lingual PDF Document Translation</li>
+                <li class="flex items-center gap-2"><span class="text-indigo-400">✓</span> PDF to Markdown Documentation Converter</li>
+                <li class="flex items-center gap-2"><span class="text-indigo-400">✓</span> QR Code Generator & Dev Placeholder Engine</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="p-3 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-300 flex items-center justify-between z-base font-mono">
+            <span>Modular Architecture:</span>
+            <span>Tools execute through a unified workspace runner with drag-and-drop batch queuing.</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ═════════════════════════════════════════════════════════════════════
+           SLIDE 7: Competitive Benchmark Matrix
+      ══════════════════════════════════════════════════════════════════════ -->
+      <div class="slide-3d preserve-3d" data-slide-index="6" onclick="onSlideClick(6)">
+        <div class="flex flex-col justify-between h-full preserve-3d">
+          
+          <div class="z-top">
+            <span class="text-xs font-mono font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-3 py-1 rounded-md border border-amber-500/20">Market Comparison</span>
+            <h2 class="text-3xl font-extrabold mt-2 text-white">Head-to-Head: PixelForge vs. Industry Monoliths</h2>
+            <p class="text-slate-400 text-xs">Why PixelForge delivers superior value, privacy, and architectural freedom compared to commercial incumbents.</p>
+          </div>
+
+          <!-- Benchmark Table -->
+          <div class="my-auto rounded-2xl border border-white/10 bg-black/40 overflow-hidden z-mid">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-white/10 bg-white/5 font-mono text-[11px] uppercase">
+                  <th class="p-3 text-slate-400">Feature / Metric</th>
+                  <th class="p-3 text-lime-400 bg-lime-500/15 font-bold">PixelForge (Our Project)</th>
+                  <th class="p-3 text-slate-300">iLovePDF</th>
+                  <th class="p-3 text-slate-300">SmallPDF</th>
+                  <th class="p-3 text-slate-300">TinyPNG</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                <tr>
+                  <td class="p-3 font-semibold text-white">Total Active Tools</td>
+                  <td class="p-3 font-bold text-lime-400 bg-lime-500/5">114+ (Images + PDF + AI)</td>
+                  <td class="p-3 text-slate-400">~25 (PDF Only)</td>
+                  <td class="p-3 text-slate-400">~21 (PDF Only)</td>
+                  <td class="p-3 text-slate-400">1 (Image Compress)</td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-semibold text-white">Cost & Paywalls</td>
+                  <td class="p-3 font-bold text-lime-400 bg-lime-500/5">100% Free Forever</td>
+                  <td class="p-3 text-slate-400">$7 / Month</td>
+                  <td class="p-3 text-slate-400">$12 / Month</td>
+                  <td class="p-3 text-slate-400">$39 / Year</td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-semibold text-white">Daily Usage Limits</td>
+                  <td class="p-3 font-bold text-lime-400 bg-lime-500/5">Unlimited Usage</td>
+                  <td class="p-3 text-slate-400">Throttled Batch Limits</td>
+                  <td class="p-3 text-rose-400 font-semibold">2 Tasks / Day</td>
+                  <td class="p-3 text-slate-400">Max 20 Files</td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-semibold text-white">Data Lifecycle Policy</td>
+                  <td class="p-3 font-bold text-lime-400 bg-lime-500/5">60-Min Cryptographic Purge</td>
+                  <td class="p-3 text-slate-400">2-Hour Retention</td>
+                  <td class="p-3 text-slate-400">14-Day Cloud Storage</td>
+                  <td class="p-3 text-slate-400">Variable Retention</td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-semibold text-white">Advertisements & Tracking</td>
+                  <td class="p-3 font-bold text-lime-400 bg-lime-500/5">Zero Ads / Clean UX</td>
+                  <td class="p-3 text-amber-400">Heavy Banner Ads</td>
+                  <td class="p-3 text-amber-400">Upgrade Popups</td>
+                  <td class="p-3 text-slate-400">Sponsor Ads</td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-semibold text-white">Modern 3D Motion UI</td>
+                  <td class="p-3 font-bold text-lime-400 bg-lime-500/5">Three.js + Framer 3D</td>
+                  <td class="p-3 text-slate-400">Static 2D</td>
+                  <td class="p-3 text-slate-400">Static 2D</td>
+                  <td class="p-3 text-slate-400">Static 2D</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center justify-between z-base font-mono">
+            <span>Direct Advantage:</span>
+            <span>PixelForge delivers enterprise functionality at zero consumer cost with superior data security.</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ═════════════════════════════════════════════════════════════════════
+           SLIDE 8: SQA Audit & Verification
+      ══════════════════════════════════════════════════════════════════════ -->
+      <div class="slide-3d preserve-3d" data-slide-index="7" onclick="onSlideClick(7)">
+        <div class="flex flex-col justify-between h-full preserve-3d">
+          
+          <div class="z-top">
+            <span class="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-md border border-emerald-500/20">Empirical Verification</span>
+            <h2 class="text-3xl font-extrabold mt-2 text-white">Rigorous SQA Audit & Test Benchmarks</h2>
+            <p class="text-slate-400 text-xs">Every tool and subsystem independently evaluated via comprehensive automated test harnesses.</p>
+          </div>
+
+          <!-- 4 Big Metric HUD Cards -->
+          <div class="grid grid-cols-4 gap-4 my-auto preserve-3d">
+            <div class="holo-card p-4 text-center border-emerald-500/30 z-mid">
+              <p class="text-3xl font-black text-emerald-400">88 / 88</p>
+              <p class="text-xs text-slate-300 font-semibold mt-1">Active Tools Passed</p>
+              <p class="text-[10px] text-slate-500 font-mono mt-0.5">100% E2E Verification</p>
+            </div>
+            <div class="holo-card p-4 text-center border-sky-500/30 z-mid">
+              <p class="text-3xl font-black text-sky-400">35 / 35</p>
+              <p class="text-xs text-slate-300 font-semibold mt-1">Jest Unit Tests</p>
+              <p class="text-[10px] text-slate-500 font-mono mt-0.5">5 Server Test Suites</p>
+            </div>
+            <div class="holo-card p-4 text-center border-purple-500/30 z-mid">
+              <p class="text-3xl font-black text-purple-400">1.60s</p>
+              <p class="text-xs text-slate-300 font-semibold mt-1">Production Build</p>
+              <p class="text-[10px] text-slate-500 font-mono mt-0.5">2,631 Modules Clean</p>
+            </div>
+            <div class="holo-card p-4 text-center border-lime-500/30 z-mid">
+              <p class="text-3xl font-black text-lime-400">17.5 : 1</p>
+              <p class="text-xs text-slate-300 font-semibold mt-1">WCAG Contrast</p>
+              <p class="text-[10px] text-slate-500 font-mono mt-0.5">Exceeds AA Standard</p>
+            </div>
+          </div>
+
+          <!-- Verified Fixes List -->
+          <div class="space-y-2 text-xs z-mid">
+            <div class="p-2.5 rounded-lg bg-black/40 border border-white/10 flex items-center justify-between">
+              <span class="text-slate-300 font-medium">1. PDF FormData Upload Normalization (16 Affected Tools)</span>
+              <span class="text-lime-400 font-mono font-bold">VERIFIED FIXED ✓</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-black/40 border border-white/10 flex items-center justify-between">
+              <span class="text-slate-300 font-medium">2. AI Image Endpoint Routing (remove-bg, change-bg, OCR)</span>
+              <span class="text-lime-400 font-mono font-bold">VERIFIED FIXED ✓</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-black/40 border border-white/10 flex items-center justify-between">
+              <span class="text-slate-300 font-medium">3. Strict CORS Hostname & Protocol Security (evilpixelforge blocked)</span>
+              <span class="text-lime-400 font-mono font-bold">VERIFIED FIXED ✓</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-black/40 border border-white/10 flex items-center justify-between">
+              <span class="text-slate-300 font-medium">4. Multi-Worker Shared Storage Concurrency (.registry.json fallback)</span>
+              <span class="text-lime-400 font-mono font-bold">VERIFIED FIXED ✓</span>
+            </div>
+          </div>
+
+          <div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center justify-between z-base font-mono">
+            <span>Audit Status:</span>
+            <span>Zero critical vulnerabilities • 100% regression test pass rate.</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ═════════════════════════════════════════════════════════════════════
+           SLIDE 9: Conclusion & FYP Defense Summary
+      ══════════════════════════════════════════════════════════════════════ -->
+      <div class="slide-3d preserve-3d" data-slide-index="8" onclick="onSlideClick(8)">
+        <div class="flex flex-col justify-between h-full preserve-3d text-center">
+          
+          <div class="z-top">
+            <span class="text-xs font-mono font-bold uppercase tracking-wider text-lime-400 bg-lime-500/10 px-3 py-1 rounded-md border border-lime-500/20">Capstone Summary</span>
+            <h2 class="text-3xl font-extrabold mt-2 text-white">Project Conclusion & Impact</h2>
+            <p class="text-slate-300 text-xs max-w-2xl mx-auto mt-2 leading-relaxed">
+              PixelForge successfully demonstrates that an open MERN stack architecture, paired with native compiled C++ bindings and zero-trust ephemeral storage, can outperform commercial monoliths in speed, privacy, and user experience.
+            </p>
+          </div>
+
+          <!-- 3 Impact Pillars -->
+          <div class="grid grid-cols-3 gap-4 my-auto text-left preserve-3d">
+            <div class="holo-card p-4.5 border-lime-400/20 z-mid">
+              <p class="text-xs font-bold text-lime-400 mb-1">Academic Contribution</p>
+              <p class="text-[11px] text-slate-300 leading-relaxed">Proof of concept for high-speed multi-threaded binary streaming without external CLI shell injection vulnerabilities.</p>
+            </div>
+            <div class="holo-card p-4.5 border-sky-400/20 z-mid">
+              <p class="text-xs font-bold text-sky-400 mb-1">Practical Impact</p>
+              <p class="text-[11px] text-slate-300 leading-relaxed">Eliminates the need for multiple paid subscriptions for students, designers, legal firms, and software developers.</p>
+            </div>
+            <div class="holo-card p-4.5 border-purple-400/20 z-mid">
+              <p class="text-xs font-bold text-purple-400 mb-1">Future Roadmap</p>
+              <p class="text-[11px] text-slate-300 leading-relaxed">Client-side WebAssembly (Wasm) execution for 100% offline edge processing and generative AI super-resolution.</p>
+            </div>
+          </div>
+
+          <!-- Defense Invitation Card -->
+          <div class="p-5 rounded-2xl bg-gradient-to-r from-lime-400/20 via-sky-400/20 to-indigo-500/20 border border-white/20 z-high">
+            <p class="text-xl font-black text-white">Thank You! Open for Questions & Committee Defense</p>
+            <p class="text-xs text-lime-400 font-mono mt-1">https://pixelforge.io • PixelForge v2.0 Production Release</p>
+          </div>
+
+          <div class="text-[11px] text-slate-500 font-mono z-base">
+            Press <kbd class="px-1 rounded bg-white/10 text-white">O</kbd> to inspect in 3D Orbit View • Press <kbd class="px-1 rounded bg-white/10 text-white">N</kbd> for Viva Defense Notes
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Bottom Floating Navigation HUD -->
+  <footer class="relative z-30 w-full px-6 py-3.5 border-t border-white/10 bg-[#0a0c13]/85 backdrop-blur-md flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <button onclick="prevSlide()" class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold text-xs flex items-center gap-2 transition-all hover:-translate-x-0.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        Previous
+      </button>
+      <button onclick="nextSlide()" class="px-5 py-2 rounded-xl bg-lime-400 hover:bg-lime-300 text-black font-bold text-xs flex items-center gap-2 transition-all hover:translate-x-0.5 shadow-lg shadow-lime-500/20">
+        Next
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+      </button>
+    </div>
+
+    <!-- Quick Slide Selector Buttons -->
+    <div class="hidden md:flex items-center gap-1.5 bg-black/40 px-3 py-1.5 rounded-full border border-white/10" id="dotsContainer">
+      <!-- Rendered by JS -->
+    </div>
+
+    <div class="flex items-center gap-3">
+      <span class="hidden lg:inline text-xs text-slate-400 font-mono">
+        Keys: <kbd class="px-1.5 py-0.5 rounded bg-white/10 border border-white/20 text-white text-[10px]">←</kbd> <kbd class="px-1.5 py-0.5 rounded bg-white/10 border border-white/20 text-white text-[10px]">→</kbd> <kbd class="px-1.5 py-0.5 rounded bg-white/10 border border-white/20 text-white text-[10px]">O</kbd> <kbd class="px-1.5 py-0.5 rounded bg-white/10 border border-white/20 text-white text-[10px]">N</kbd>
+      </span>
+
+      <select id="slideJump" onchange="jumpToSlide(parseInt(this.value, 10))" class="bg-[#161824] border border-white/10 text-slate-300 text-xs rounded-xl px-3 py-2 outline-none focus:border-lime-400">
+        <option value="0">1. Project Overview</option>
+        <option value="1">2. The Problem</option>
+        <option value="2">3. The Solution</option>
+        <option value="3">4. MERN Architecture</option>
+        <option value="4">5. Processing Pipeline</option>
+        <option value="5">6. 114+ Feature Suites</option>
+        <option value="6">7. Benchmark vs iLovePDF</option>
+        <option value="7">8. SQA Verification</option>
+        <option value="8">9. Conclusion & Roadmap</option>
+      </select>
+    </div>
+  </footer>
+
+  <!-- Slide-out Speaker Notes / Viva Defense Drawer -->
+  <div id="speakerNotesDrawer" class="fixed right-0 top-0 bottom-0 w-88 bg-[#0a0c14]/95 border-l border-white/10 backdrop-blur-2xl z-50 p-6 transform translate-x-full transition-transform duration-300 shadow-2xl flex flex-col justify-between">
+    <div>
+      <div class="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
+        <h3 class="text-xs font-mono font-bold uppercase text-lime-400 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+          Viva Defense Scripts
+        </h3>
+        <button onclick="toggleSpeakerNotes()" class="p-1 rounded-md text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <div class="text-xs text-slate-300 leading-relaxed space-y-3 custom-scrollbar overflow-y-auto max-h-[75vh]" id="notesContent">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <div class="pt-4 border-t border-white/10 text-[11px] text-slate-500 font-mono">
+      Pro Tip: Press <kbd class="px-1 rounded bg-white/10 text-white">N</kbd> anytime to toggle notes.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       3D ENGINE & PRESENTATION LOGIC
+  ════════════════════════════════════════════════════════════════════════ -->
+  <script>
+    // State
+    let currentSlide = 0;
+    const totalSlides = 9;
+    const cylinderRadius = 1100; // Radius in pixels for 3D carousel cylinder
+    const angleStep = 360 / totalSlides; // 40 degrees per slide
+
+    let is3DOrbitView = false;
+    let soundEnabled = true;
+
+    // Mouse tracking for parallax
+    let mouseX = 0;
+    let mouseY = 0;
+    let targetTiltX = 0;
+    let targetTiltY = 0;
+    let currentTiltX = 0;
+    let currentTiltY = 0;
+
+    // Audio Context (Synthesizer FX - Zero External Dependencies)
+    let audioCtx = null;
+    function playTone(freq, type = 'sine', duration = 0.15, vol = 0.1) {
+      if (!soundEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function playWhoosh() {
+      playTone(320, 'sine', 0.25, 0.08);
+      setTimeout(() => playTone(540, 'triangle', 0.18, 0.05), 60);
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      document.getElementById('iconSoundOn').style.opacity = soundEnabled ? '1' : '0.3';
+      if (soundEnabled) playTone(660, 'sine', 0.1);
+    }
+
+    // Viva Defense Notes
+    const speakerNotes = [
+      /* Slide 1 */ "Welcome committee members and professors. Today I am presenting PixelForge, an enterprise-grade digital asset engineering suite. Start by highlighting that unlike typical single-purpose utility sites, PixelForge is an all-in-one platform built using the modern MERN stack paired with compiled native C++ bindings for blazing fast image and PDF processing.",
+      /* Slide 2 */ "Here we outline the core user pain points. Explain that users are currently forced to switch between multiple fragmented websites: iLovePDF for PDF merge, TinyPNG for compression, Remove.bg for cutouts, and CloudConvert. Emphasize that free tiers on sites like SmallPDF now limit users to just 2 tasks a day, and most proprietary tools fail to provide transparent file deletion guarantees.",
+      /* Slide 3 */ "Introduce PixelForge as the direct solution. Explain the three pillars: (1) 114+ Tools under one URL, (2) Ephemeral Zero-Trust privacy model where files are destroyed after 60 minutes or immediately with a 1-click button, and (3) Native execution speeds that avoid interpreted script overhead.",
+      /* Slide 4 */ "This is your deep technical architecture slide. Walk through each tier: React 19 frontend with 3D Framer Motion and Three.js; Express 4 backend with Multer normalization middleware; Sharp 0.35 (libvips multi-threaded) and PDF-Lib engines; and MongoDB 8 with automatic TTL expiring indices plus multi-worker shared disk synchronization.",
+      /* Slide 5 */ "Explain the life of a file request. File arrives through the drag-and-drop zone, headers are verified to block malicious executables, streams are piped directly into native memory buffers without spawning insecure shell commands, outputs receive an unguessable UUIDv4 token, and the background daemon sweeps disk storage every 30 minutes.",
+      /* Slide 6 */ "Present the three core feature domains: The Image Suite (62 active tools including passport sizing, EXIF stripping, and WebP compression), The PDF Engineering Suite (19 tools including vector redaction, password security, and bi-directional Word to PDF), and AI Document Intelligence (OCR via Tesseract.js and summarization).",
+      /* Slide 7 */ "This is your competitive advantage matrix. Walk through each row: While iLovePDF and SmallPDF lock features behind $7-$12/month paywalls and limit daily usage, PixelForge provides 100% unrestricted access, zero intrusive ad banners, and an interactive 3D UI.",
+      /* Slide 8 */ "Present the empirical Software Quality Assurance (SQA) audit evidence. Stress that all 88 active tools were independently verified with real file fixtures (100% pass rate). Highlight the remediation of previous defects: PDF multi-field upload mismatch, AI image route isolation, strict CORS domain whitelisting, and multi-worker registry persistence.",
+      /* Slide 9 */ "Conclude the presentation. Summarize the academic significance (high-speed binary streaming without shell injection), real-world impact (saving users from subscription traps), and future expansion into client-side WebAssembly (Wasm) for 100% offline edge execution. Invite questions."
+    ];
+
+    // Setup 3D Carousel Cylinder Positions
+    const slides = document.querySelectorAll('.slide-3d');
+    slides.forEach((slide, idx) => {
+      const angle = idx * angleStep;
+      slide.style.transform = `rotateY(${angle}deg) translateZ(${cylinderRadius}px)`;
+    });
+
+    // Update 3D World Transform & Slide States
+    function updateScene() {
+      const world = document.getElementById('world3D');
+      const baseRotationY = -(currentSlide * angleStep);
+
+      if (is3DOrbitView) {
+        // Pull back camera to reveal the entire 3D cylinder ring!
+        world.style.transform = `translateZ(-2300px) rotateX(24deg) rotateY(${baseRotationY + currentTiltY * 0.5}deg)`;
+      } else {
+        // Normal slide view with dynamic mouse parallax tilt
+        world.style.transform = `translateZ(-${cylinderRadius}px) rotateX(${currentTiltX}deg) rotateY(${baseRotationY + currentTiltY}deg)`;
+      }
+
+      // Update slide active / inactive classes
+      slides.forEach((slide, idx) => {
+        if (idx === currentSlide) {
+          slide.classList.add('active');
+          slide.classList.remove('inactive');
+        } else {
+          slide.classList.remove('active');
+          slide.classList.add('inactive');
+        }
+      });
+
+      // Update HUD elements
+      document.getElementById('slideCounter').innerText = `0${currentSlide + 1} / 0${totalSlides}`;
+      document.getElementById('progressBar').style.width = `${((currentSlide + 1) / totalSlides) * 100}%`;
+      document.getElementById('slideJump').value = currentSlide;
+
+      // Update Notes & Dots
+      document.getElementById('notesContent').innerHTML = `<p>${speakerNotes[currentSlide]}</p>`;
+      renderDots();
+    }
+
+    function renderDots() {
+      const container = document.getElementById('dotsContainer');
+      container.innerHTML = '';
+      for (let i = 0; i < totalSlides; i++) {
+        const dot = document.createElement('button');
+        dot.className = `w-2 h-2 rounded-full transition-all ${i === currentSlide ? 'bg-lime-400 w-5' : 'bg-white/20 hover:bg-white/40'}`;
+        dot.title = `Slide ${i + 1}`;
+        dot.onclick = () => jumpToSlide(i);
+        container.appendChild(dot);
+      }
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) {
+        currentSlide++;
+        playWhoosh();
+        updateScene();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        playWhoosh();
+        updateScene();
+      }
+    }
+
+    function jumpToSlide(idx) {
+      if (idx >= 0 && idx < totalSlides && idx !== currentSlide) {
+        currentSlide = idx;
+        playWhoosh();
+        updateScene();
+      }
+    }
+
+    function onSlideClick(idx) {
+      if (is3DOrbitView || idx !== currentSlide) {
+        jumpToSlide(idx);
+        if (is3DOrbitView) toggle3DOrbitView();
+      }
+    }
+
+    function toggle3DOrbitView() {
+      is3DOrbitView = !is3DOrbitView;
+      const btn = document.getElementById('txtOrbitView');
+      btn.innerText = is3DOrbitView ? 'Focus Slide' : '3D Ring View';
+      playTone(is3DOrbitView ? 440 : 580, 'triangle', 0.2);
+      updateScene();
+    }
+
+    function toggleSpeakerNotes() {
+      const drawer = document.getElementById('speakerNotesDrawer');
+      drawer.classList.toggle('translate-x-full');
+      playTone(500, 'sine', 0.1);
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    // Mouse Parallax Physics
+    window.addEventListener('mousemove', (e) => {
+      const xNorm = (e.clientX / window.innerWidth) - 0.5;
+      const yNorm = (e.clientY / window.innerHeight) - 0.5;
+      targetTiltX = -yNorm * 10; // pitch
+      targetTiltY = xNorm * 14;  // yaw
+    });
+
+    function animationLoop() {
+      // Smooth lerp mouse parallax
+      currentTiltX += (targetTiltX - currentTiltX) * 0.08;
+      currentTiltY += (targetTiltY - currentTiltY) * 0.08;
+
+      if (!is3DOrbitView) {
+        const world = document.getElementById('world3D');
+        const baseRotationY = -(currentSlide * angleStep);
+        world.style.transform = `translateZ(-${cylinderRadius}px) rotateX(${currentTiltX.toFixed(2)}deg) rotateY(${(baseRotationY + currentTiltY).toFixed(2)}deg)`;
+      }
+
+      requestAnimationFrame(animationLoop);
+    }
+    requestAnimationFrame(animationLoop);
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key === 'o' || e.key === 'O') {
+        toggle3DOrbitView();
+      } else if (e.key === 'n' || e.key === 'N') {
+        toggleSpeakerNotes();
+      } else if (e.key === 'f' || e.key === 'F') {
+        toggleFullscreen();
+      } else if (e.key >= '1' && e.key <= '9') {
+        jumpToSlide(parseInt(e.key, 10) - 1);
+      }
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 3D REAL-TIME CANVAS STARFIELD & ROTATING WIREFRAME POLYHEDRA
+    // ═══════════════════════════════════════════════════════════════════════
+    const canvas = document.getElementById('bgCanvas3D');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // 3D Particles
+    const particleCount = 140;
+    const particles = [];
+    for (let i = 0; i < particleCount; i++) {
+      particles.push({
+        x: (Math.random() - 0.5) * 2400,
+        y: (Math.random() - 0.5) * 1600,
+        z: Math.random() * 2000,
+        size: Math.random() * 2 + 1,
+        color: Math.random() > 0.5 ? '#a3e635' : '#38bdf8'
+      });
+    }
+
+    // 3D Wireframe Polyhedron Vertices (Icosahedron)
+    const phi = (1 + Math.sqrt(5)) / 2;
+    const icosaVertices = [
+      [-1,  phi, 0], [ 1,  phi, 0], [-1, -phi, 0], [ 1, -phi, 0],
+      [ 0, -1,  phi], [ 0,  1,  phi], [ 0, -1, -phi], [ 0,  1, -phi],
+      [ phi, 0, -1], [ phi, 0,  1], [-phi, 0, -1], [-phi, 0,  1]
+    ].map(v => {
+      const mag = Math.hypot(...v);
+      return [v[0] / mag * 130, v[1] / mag * 130, v[2] / mag * 130];
+    });
+
+    let polyAngleX = 0;
+    let polyAngleY = 0;
+
+    function render3DCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const fov = 700;
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+
+      // Draw 3D particle constellation
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        p.z -= 1.8;
+        if (p.z <= 0) p.z = 2000;
+
+        const scale = fov / (fov + p.z);
+        const x2d = p.x * scale + cx;
+        const y2d = p.y * scale + cy;
+
+        if (x2d >= 0 && x2d <= canvas.width && y2d >= 0 && y2d <= canvas.height) {
+          const alpha = (1 - p.z / 2000) * 0.7;
+          ctx.beginPath();
+          ctx.arc(x2d, y2d, p.size * scale, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.globalAlpha = alpha;
+          ctx.fill();
+        }
+      }
+
+      // Draw Rotating 3D Wireframe Icosahedron in Top Right Corner
+      polyAngleX += 0.007;
+      polyAngleY += 0.009;
+
+      const polyCenterX = canvas.width - 180;
+      const polyCenterY = 160;
+
+      // Rotate vertices
+      const rotated = icosaVertices.map(v => {
+        // Rotate Y
+        let x1 = v[0] * Math.cos(polyAngleY) + v[2] * Math.sin(polyAngleY);
+        let y1 = v[1];
+        let z1 = -v[0] * Math.sin(polyAngleY) + v[2] * Math.cos(polyAngleY);
+
+        // Rotate X
+        let x2 = x1;
+        let y2 = y1 * Math.cos(polyAngleX) - z1 * Math.sin(polyAngleX);
+        let z2 = y1 * Math.sin(polyAngleX) + z1 * Math.cos(polyAngleX);
+
+        return [x2 + polyCenterX, y2 + polyCenterY, z2];
+      });
+
+      // Connect vertices with glowing lines if distance matches
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < rotated.length; i++) {
+        for (let j = i + 1; j < rotated.length; j++) {
+          const dist = Math.hypot(
+            rotated[i][0] - rotated[j][0],
+            rotated[i][1] - rotated[j][1],
+            rotated[i][2] - rotated[j][2]
+          );
+          if (dist < 155) {
+            ctx.beginPath();
+            ctx.moveTo(rotated[i][0], rotated[i][1]);
+            ctx.lineTo(rotated[j][0], rotated[j][1]);
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Draw vertices
+      for (let i = 0; i < rotated.length; i++) {
+        ctx.beginPath();
+        ctx.arc(rotated[i][0], rotated[i][1], 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#a3e635';
+        ctx.globalAlpha = 0.8;
+        ctx.fill();
+      }
+
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(render3DCanvas);
+    }
+    requestAnimationFrame(render3DCanvas);
+
+    // Initial render
+    updateScene();
+  </script>
+</body>
+</html>

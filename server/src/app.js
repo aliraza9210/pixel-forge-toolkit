@@ -35,15 +35,36 @@ const authLimiter = rateLimit({
 });
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
-const allowedOrigins = [
-  process.env.CLIENT_URL || 'http://localhost:5173',
-  'http://localhost:4173', // Vite preview
+const envOrigins = (process.env.CLIENT_URL || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const defaultOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+  'https://pixelforge.io',
+  'https://www.pixelforge.io',
 ];
+
+const allowedOrigins = [...new Set([...envOrigins, ...defaultOrigins])];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      try {
+        const url = new URL(origin);
+        // Only allow standard web protocols and strict pixelforge.io or its subdomains
+        if (url.protocol === 'https:' || url.protocol === 'http:') {
+          if (url.hostname === 'pixelforge.io' || url.hostname.endsWith('.pixelforge.io')) {
+            return callback(null, true);
+          }
+        }
+      } catch (_) {}
       callback(new Error(`CORS blocked origin: ${origin}`));
     },
     credentials: true,

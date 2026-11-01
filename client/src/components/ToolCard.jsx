@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import * as Icons from 'lucide-react';
 import { ArrowRight } from 'lucide-react';
+import TiltCard from './TiltCard';
 
 const STATUS_BADGE = {
   available: <span className="badge-available">Live</span>,
@@ -16,7 +16,7 @@ function ToolIcon({ iconName, color }) {
   const Icon = Icons[iconName] || Icons.Wrench;
   return (
     <div
-      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110 shadow-sm"
       style={{
         background: `${color}18`,
         border: `1px solid ${color}30`,
@@ -28,22 +28,18 @@ function ToolIcon({ iconName, color }) {
 }
 
 export default function ToolCard({ tool, compact = false }) {
-  const isComingSoon = tool.implementationStatus === 'coming-soon';
-
   return (
-    <motion.div
-      whileHover={{ y: -3 }}
-      transition={{ duration: 0.2 }}
-    >
+    <TiltCard maxTilt={8} scale={1.025}>
       <Link
         to={tool.route}
         id={`tool-card-${tool.id}`}
-        className="block card-depth h-full p-5 group relative overflow-hidden"
+        className="block card-depth h-full p-5 group relative overflow-hidden transition-all duration-300"
+        style={{ transformStyle: 'preserve-3d' }}
         aria-label={`Open ${tool.name} tool`}
         tabIndex={0}
       >
-        {/* Top row */}
-        <div className="flex items-start justify-between mb-3">
+        {/* Top row with 3D popout */}
+        <div className="flex items-start justify-between mb-3" style={{ transform: 'translateZ(24px)' }}>
           <ToolIcon iconName={tool.icon} color={tool.color || '#a3e635'} />
           <div className="flex items-center gap-1.5">
             {tool.processingType === 'ai' && TYPE_BADGE.ai}
@@ -51,22 +47,24 @@ export default function ToolCard({ tool, compact = false }) {
           </div>
         </div>
 
-        {/* Content */}
-        <h3
-          className="font-semibold text-sm mb-1.5 group-hover:text-[var(--accent-lime)] transition-colors"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          {tool.name}
-        </h3>
-        {!compact && (
-          <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
-            {tool.description}
-          </p>
-        )}
+        {/* Content with 3D popout */}
+        <div style={{ transform: 'translateZ(16px)' }}>
+          <h3
+            className="font-semibold text-sm mb-1.5 group-hover:text-[var(--accent-lime)] transition-colors"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            {tool.name}
+          </h3>
+          {!compact && (
+            <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
+              {tool.description}
+            </p>
+          )}
+        </div>
 
-        {/* Formats */}
+        {/* Formats with 3D popout */}
         {!compact && tool.inputFormats.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-3">
+          <div className="flex flex-wrap gap-1 mt-3" style={{ transform: 'translateZ(12px)' }}>
             {tool.inputFormats.slice(0, 4).map((fmt) => (
               <span
                 key={fmt}
@@ -96,13 +94,14 @@ export default function ToolCard({ tool, compact = false }) {
           </div>
         )}
 
-        {/* Arrow */}
+        {/* Hover Arrow with 3D popout */}
         <div
-          className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-all translate-x-1 group-hover:translate-x-0"
+          style={{ transform: 'translateZ(20px)' }}
         >
           <ArrowRight className="w-4 h-4" style={{ color: tool.color || 'var(--accent-lime)' }} />
         </div>
       </Link>
-    </motion.div>
+    </TiltCard>
   );
 }

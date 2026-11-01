@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://pixelforge.io/sitemap.xml
+

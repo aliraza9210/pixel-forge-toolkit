@@ -176,6 +176,23 @@ function runLocalHeuristicAnalysis(text, task, extra = {}) {
       };
     }
 
+    case 'markdown': {
+      const mdSections = paragraphs.map((p, idx) => {
+        const lines = p.split('\n');
+        const header = lines[0].replace(/[#*]/g, '').trim();
+        const body = lines.slice(1).join('\n') || lines[0];
+        return `### Section ${idx + 1}: ${header}\n\n${body}`;
+      });
+      const markdownText = `# Document Export\n\n` + mdSections.join('\n\n');
+      return {
+        markdown: markdownText,
+        totalSections: paragraphs.length,
+        wordCount: words.length,
+        provider: 'local-heuristic',
+        notice,
+      };
+    }
+
     default:
       return { error: 'Unknown AI task requested.', provider: 'local-heuristic', notice };
   }

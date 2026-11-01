@@ -16,6 +16,11 @@ function notFoundHandler(req, res) {
 function errorHandler(err, req, res, next) {
   console.error('[Error]', err);
 
+  // Multer errors (e.g. LIMIT_FILE_SIZE, LIMIT_UNEXPECTED_FILE, etc.)
+  if (err.name === 'MulterError') {
+    return sendError(res, err.message, 400);
+  }
+
   // Mongoose validation error
   if (err.name === 'ValidationError') {
     const errors = Object.values(err.errors).map((e) => e.message);

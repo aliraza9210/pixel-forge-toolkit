@@ -503,7 +503,13 @@ async function imagesToPdf(imageInputs, { fit = true } = {}) {
 
     let embeddedImage;
     if (meta.format === 'jpeg' || meta.format === 'jpg') {
-      embeddedImage = await doc.embedJpg(buf);
+      try {
+        const jpgBuf = await sharp(buf).jpeg().toBuffer();
+        embeddedImage = await doc.embedJpg(jpgBuf);
+      } catch (_) {
+        const pngBuf = await sharp(buf).png().toBuffer();
+        embeddedImage = await doc.embedPng(pngBuf);
+      }
     } else {
       const pngBuf = await sharpInstance.png().toBuffer();
       embeddedImage = await doc.embedPng(pngBuf);
@@ -799,6 +805,60 @@ async function ocrDocument(input, options = {}) {
   }
 }
 
+/**
+ * 16. Crop PDF Margins
+ */
+async function cropPdf(input, { top = 20, right = 20, bottom = 20, left = 20 } = {}) {
+  const doc = await loadDoc(input);
+  const pages = doc.getPages();
+  const t = parseFloat(top) || 0;
+  const r = parseFloat(right) || 0;
+  const b = parseFloat(bottom) || 0;
+  const l = parseFloat(left) || 0;
+
+  for (const page of pages) {
+    const { width, height } = page.getSize();
+    const newWidth = Math.max(20, width - l - r);
+    const newHeight = Math.max(20, height - t - b);
+    page.setCropBox(l, b, newWidth, newHeight);
+  }
+  const bytes = await doc.save();
+  return Buffer.from(bytes);
+}
+
+/**
+ * 17. Redact PDF Sensitive Info
+ */
+async function redactPdf(input, options = {}) {
+  const doc = await loadDoc(input);
+  const pages = doc.getPages();
+  let rects = options.rectangles;
+  if (typeof rects === 'string') {
+    try {
+      rects = JSON.parse(rects);
+    } catch (_) {
+      rects = [];
+    }
+  }
+  if (!Array.isArray(rects) || rects.length === 0) {
+    rects = [{ page: 1, x: 50, y: 700, width: 300, height: 25 }];
+  }
+  for (const rect of rects) {
+    const pIndex = (rect.page || 1) - 1;
+    if (pages[pIndex]) {
+      pages[pIndex].drawRectangle({
+        x: Number(rect.x) || 50,
+        y: Number(rect.y) || 50,
+        width: Number(rect.width) || 200,
+        height: Number(rect.height) || 20,
+        color: rgb(0, 0, 0),
+      });
+    }
+  }
+  const bytes = await doc.save();
+  return Buffer.from(bytes);
+}
+
 module.exports = {
   mergePdfs,
   splitPdf,
@@ -818,4 +878,6 @@ module.exports = {
   pdfToWord,
   wordToPdf,
   ocrDocument,
+  cropPdf,
+  redactPdf,
 };

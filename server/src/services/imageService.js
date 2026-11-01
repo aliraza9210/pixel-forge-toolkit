@@ -459,6 +459,87 @@ async function bulkCompress(files, { quality = 80, format = 'webp' }) {
   });
 }
 
+/**
+ * 10. Circle Crop
+ */
+async function circleCrop(input) {
+  const meta = await getSharp(input).metadata();
+  const size = Math.min(meta.width, meta.height);
+  const radius = Math.floor(size / 2);
+  const circleSvg = Buffer.from(
+    `<svg width="${size}" height="${size}"><circle cx="${radius}" cy="${radius}" r="${radius}" fill="#000"/></svg>`
+  );
+  return getSharp(input)
+    .extract({
+      left: Math.floor((meta.width - size) / 2),
+      top: Math.floor((meta.height - size) / 2),
+      width: size,
+      height: size,
+    })
+    .composite([{ input: circleSvg, blend: 'dest-in' }])
+    .png()
+    .toBuffer();
+}
+
+/**
+ * 11. Round Corners
+ */
+async function roundCorners(input, { radius = 30 } = {}) {
+  const meta = await getSharp(input).metadata();
+  const r = Math.min(parseInt(radius, 10) || 30, Math.floor(meta.width / 2), Math.floor(meta.height / 2));
+  const rectSvg = Buffer.from(
+    `<svg width="${meta.width}" height="${meta.height}"><rect x="0" y="0" width="${meta.width}" height="${meta.height}" rx="${r}" ry="${r}" fill="#000"/></svg>`
+  );
+  return getSharp(input)
+    .composite([{ input: rectSvg, blend: 'dest-in' }])
+    .png()
+    .toBuffer();
+}
+
+/**
+ * 12. Square Crop
+ */
+async function squareCrop(input) {
+  const meta = await getSharp(input).metadata();
+  const size = Math.min(meta.width, meta.height);
+  return getSharp(input)
+    .extract({
+      left: Math.floor((meta.width - size) / 2),
+      top: Math.floor((meta.height - size) / 2),
+      width: size,
+      height: size,
+    })
+    .toBuffer();
+}
+
+/**
+ * 13. Add Name & Date to Photo
+ */
+async function addNameDateToPhoto(input, { name = '', date = '' } = {}) {
+  const meta = await getSharp(input).metadata();
+  const bannerHeight = Math.max(40, Math.floor(meta.height * 0.12));
+  const fontSize = Math.max(14, Math.floor(bannerHeight * 0.35));
+  const bannerY = meta.height - bannerHeight;
+  const safeName = String(name || 'NAME').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const safeDate = String(date || new Date().toISOString().slice(0, 10)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const svgOverlay = Buffer.from(
+    `<svg width="${meta.width}" height="${meta.height}">
+      <rect x="0" y="${bannerY}" width="${meta.width}" height="${bannerHeight}" fill="white" opacity="0.95"/>
+      <text x="${meta.width / 2}" y="${bannerY + fontSize + 2}" font-family="sans-serif" font-size="${fontSize}px" font-weight="bold" fill="black" text-anchor="middle">${safeName}</text>
+      <text x="${meta.width / 2}" y="${bannerY + bannerHeight - 6}" font-family="sans-serif" font-size="${Math.floor(fontSize * 0.85)}px" fill="#333333" text-anchor="middle">DOB/DOA: ${safeDate}</text>
+    </svg>`
+  );
+  return getSharp(input).composite([{ input: svgOverlay, blend: 'over' }]).jpeg({ quality: 95 }).toBuffer();
+}
+
+/**
+ * 14. Clean / Remove Metadata
+ */
+async function removeMetadata(input, { format = 'jpeg' } = {}) {
+  const targetFmt = format === 'png' ? 'png' : 'jpeg';
+  return getSharp(input).withMetadata(false).toFormat(targetFmt, { quality: 90 }).toBuffer();
+}
+
 module.exports = {
   cropImage,
   resizeImage,
@@ -470,4 +551,9 @@ module.exports = {
   removeBackground,
   getImageMetadata,
   bulkCompress,
+  circleCrop,
+  roundCorners,
+  squareCrop,
+  addNameDateToPhoto,
+  removeMetadata,
 };

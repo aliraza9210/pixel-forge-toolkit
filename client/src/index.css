@@ -46,9 +46,9 @@
     --bg-elevated: #f8fafc;
     --border-subtle: #e2e8f0;
     --border-medium: #cbd5e1;
-    --accent-lime: #10b981;
-    --accent-lime-dim: #059669;
-    --accent-lime-glow: rgba(16, 185, 129, 0.12);
+    --accent-lime: #047857;
+    --accent-lime-dim: #065f46;
+    --accent-lime-glow: rgba(4, 120, 87, 0.14);
     --text-primary: #0f172a;
     --text-secondary: #475569;
     --text-muted: #64748b;
@@ -323,6 +323,34 @@
     background: radial-gradient(circle, rgba(163, 230, 53, 0.06) 0%, transparent 70%);
     pointer-events: none;
     filter: blur(40px);
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+  .perspective-1400 {
+    perspective: 1400px;
+  }
+
+  @keyframes float-slow {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-8px) rotate(1.5deg); }
+  }
+
+  @keyframes pulse-subtle {
+    0%, 100% { opacity: 0.35; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.05); }
+  }
+
+  .animate-float-3d {
+    animation: float-slow 5s ease-in-out infinite;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-subtle 4s ease-in-out infinite;
   }
 
   @media (prefers-reduced-motion: reduce) {

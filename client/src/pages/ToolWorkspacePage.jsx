@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import * as Icons from 'lucide-react';
@@ -9,6 +10,40 @@ import ToolWorkspaceRunner from '../components/ToolWorkspaceRunner';
 export default function ToolWorkspacePage() {
   const { toolId } = useParams();
   const tool = getToolById(toolId);
+
+  useEffect(() => {
+    if (!tool) return;
+
+    const originalTitle = document.title;
+    document.title = `${tool.name} Online - Free & Secure | PixelForge`;
+
+    let descMeta = document.querySelector('meta[name="description"]');
+    const originalDesc = descMeta ? descMeta.getAttribute('content') : '';
+    if (descMeta) {
+      descMeta.setAttribute('content', `${tool.description} Fast, secure online processing with PixelForge.`);
+    }
+
+    let canonicalLink = document.querySelector('link[rel="canonical"]');
+    const originalCanonical = canonicalLink ? canonicalLink.getAttribute('href') : '';
+    if (canonicalLink) {
+      canonicalLink.setAttribute('href', `https://pixelforge.io/tools/${tool.id}`);
+    }
+
+    let ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) ogTitle.setAttribute('content', `${tool.name} Online — PixelForge`);
+
+    let ogDesc = document.querySelector('meta[property="og:description"]');
+    if (ogDesc) ogDesc.setAttribute('content', tool.description);
+
+    let ogUrl = document.querySelector('meta[property="og:url"]');
+    if (ogUrl) ogUrl.setAttribute('content', `https://pixelforge.io/tools/${tool.id}`);
+
+    return () => {
+      document.title = originalTitle;
+      if (descMeta && originalDesc) descMeta.setAttribute('content', originalDesc);
+      if (canonicalLink && originalCanonical) canonicalLink.setAttribute('href', originalCanonical);
+    };
+  }, [tool]);
 
   if (!tool) {
     return (

@@ -17,6 +17,70 @@ for (const dir of [UPLOADS_DIR, PROCESSED_DIR]) {
 // In-memory file registry for temporary download tokens and metadata
 // Key: fileToken -> { originalName, filename, path, mimeType, size, createdAt, expiresAt }
 const fileRegistry = new Map();
+const REGISTRY_FILE = path.join(UPLOADS_DIR, '.registry.json');
+
+/**
+ * Safely read registry from shared disk storage
+ */
+function readDiskRegistry() {
+  try {
+    if (!fs.existsSync(REGISTRY_FILE)) return {};
+    const content = fs.readFileSync(REGISTRY_FILE, 'utf8');
+    if (!content || !content.trim()) return {};
+    return JSON.parse(content) || {};
+  } catch (err) {
+    return {};
+  }
+}
+
+// Load persisted registry from disk on initialization
+try {
+  const data = readDiskRegistry();
+  const now = new Date();
+  for (const [token, fileData] of Object.entries(data)) {
+    if (fileData && fileData.expiresAt && new Date(fileData.expiresAt) > now && fs.existsSync(fileData.path)) {
+      fileData.createdAt = new Date(fileData.createdAt);
+      fileData.expiresAt = new Date(fileData.expiresAt);
+      fileRegistry.set(token, fileData);
+    }
+  }
+} catch (err) {
+  console.warn('[Storage] Failed to load registry from disk:', err.message);
+}
+
+function persistRegistry() {
+  try {
+    const diskObj = readDiskRegistry();
+    const now = new Date();
+    const merged = {};
+
+    // Keep active tokens from disk (persisted by other workers)
+    for (const [token, data] of Object.entries(diskObj)) {
+      if (data && data.expiresAt && new Date(data.expiresAt) > now) {
+        merged[token] = data;
+      }
+    }
+
+    // Merge in-memory active tokens
+    for (const [token, fileData] of fileRegistry.entries()) {
+      if (fileData && fileData.expiresAt && fileData.expiresAt > now) {
+        merged[token] = fileData;
+      }
+    }
+
+    const jsonStr = JSON.stringify(merged, null, 2);
+    const tmpFile = `${REGISTRY_FILE}.${process.pid}.${Date.now()}.tmp`;
+    fs.writeFileSync(tmpFile, jsonStr, 'utf8');
+    try {
+      fs.renameSync(tmpFile, REGISTRY_FILE);
+    } catch (_) {
+      fs.copyFileSync(tmpFile, REGISTRY_FILE);
+      try { fs.unlinkSync(tmpFile); } catch (_) {}
+    }
+  } catch (err) {
+    console.warn('[Storage] Failed to persist registry to disk:', err.message);
+  }
+}
 
 /**
  * Register a processed file for secure download
@@ -46,15 +110,30 @@ function registerFile({ filename, originalName, mimeType, isUpload = false, ttlM
   };
 
   fileRegistry.set(fileToken, fileData);
+  persistRegistry();
   return fileData;
 }
 
 /**
- * Get file metadata by token, validating expiration
+ * Get file metadata by token, validating expiration with dynamic disk fallback
  */
 function getFileByToken(token) {
   if (!token) return null;
-  const fileData = fileRegistry.get(token);
+  let fileData = fileRegistry.get(token);
+
+  // Dynamic fallback: lookup shared disk registry if not cached in memory
+  if (!fileData) {
+    try {
+      const diskObj = readDiskRegistry();
+      if (diskObj && diskObj[token]) {
+        fileData = diskObj[token];
+        fileData.createdAt = new Date(fileData.createdAt);
+        fileData.expiresAt = new Date(fileData.expiresAt);
+        fileRegistry.set(token, fileData);
+      }
+    } catch (_) {}
+  }
+
   if (!fileData) return null;
 
   if (new Date() > fileData.expiresAt) {
@@ -64,7 +143,7 @@ function getFileByToken(token) {
 
   // Ensure file physically exists
   if (!fs.existsSync(fileData.path)) {
-    fileRegistry.delete(token);
+    cleanupFile(token);
     return null;
   }
 
@@ -72,10 +151,19 @@ function getFileByToken(token) {
 }
 
 /**
- * Remove a file immediately by token
+ * Remove a file immediately by token from memory and shared disk
  */
 function cleanupFile(token) {
-  const fileData = fileRegistry.get(token);
+  let fileData = fileRegistry.get(token);
+  if (!fileData) {
+    try {
+      const diskObj = readDiskRegistry();
+      if (diskObj && diskObj[token]) {
+        fileData = diskObj[token];
+      }
+    } catch (_) {}
+  }
+
   if (fileData) {
     try {
       if (fs.existsSync(fileData.path)) {
@@ -85,6 +173,23 @@ function cleanupFile(token) {
       console.warn(`[Storage] Failed to delete file ${fileData.path}:`, err.message);
     }
     fileRegistry.delete(token);
+
+    // Atomically remove from disk registry
+    try {
+      const diskObj = readDiskRegistry();
+      if (diskObj && diskObj[token]) {
+        delete diskObj[token];
+        const tmpFile = `${REGISTRY_FILE}.${process.pid}.${Date.now()}.tmp`;
+        fs.writeFileSync(tmpFile, JSON.stringify(diskObj, null, 2), 'utf8');
+        try {
+          fs.renameSync(tmpFile, REGISTRY_FILE);
+        } catch (_) {
+          fs.copyFileSync(tmpFile, REGISTRY_FILE);
+          try { fs.unlinkSync(tmpFile); } catch (_) {}
+        }
+      }
+    } catch (_) {}
+
     return true;
   }
   return false;
@@ -105,13 +210,24 @@ function sweepExpiredFiles() {
     }
   }
 
+  // Also sweep disk registry for expired files across workers
+  try {
+    const diskObj = readDiskRegistry();
+    for (const [token, fileData] of Object.entries(diskObj)) {
+      if (fileData && fileData.expiresAt && now > new Date(fileData.expiresAt)) {
+        cleanupFile(token);
+        sweptCount++;
+      }
+    }
+  } catch (_) {}
+
   // Also sweep physical directories for orphaned files older than 2 hours
   const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
   for (const dir of [UPLOADS_DIR, PROCESSED_DIR]) {
     try {
       const files = fs.readdirSync(dir);
       for (const file of files) {
-        if (file === '.gitkeep') continue;
+        if (file === '.gitkeep' || file === '.registry.json' || file.endsWith('.tmp')) continue;
         const filePath = path.join(dir, file);
         try {
           const stats = fs.statSync(filePath);
