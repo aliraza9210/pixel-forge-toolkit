@@ -21,11 +21,22 @@ import {
   ArrowRight,
   Info,
   ShieldCheck,
+  Palette,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import toast from 'react-hot-toast';
 import { PDF_CATEGORIES } from '../data/toolsRegistry';
 import useThemeStore from '../store/themeStore';
+
+// ─── AI Background Removal & Replacement (client-side WASM) ─────────────────
+let _removeBackgroundLib = null;
+async function loadRemoveBgLib() {
+  if (!_removeBackgroundLib) {
+    const mod = await import('@imgly/background-removal');
+    _removeBackgroundLib = mod.removeBackground;
+  }
+  return _removeBackgroundLib;
+}
 
 // Document-level AI/NLP tools routed to /api/process/ai/:toolId
 const DOC_AI_TOOLS = [
@@ -97,6 +108,12 @@ export default function ToolWorkspaceRunner({ tool }) {
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // Background replacement controls (for change-background)
+  const [changeBgMode, setChangeBgMode] = useState('color'); // 'color' | 'image'
+  const [changeBgColor, setChangeBgColor] = useState('#ffffff');
+  const [bgImageFile, setBgImageFile] = useState(null);
+  const [bgImagePreview, setBgImagePreview] = useState(null);
+
   const canvasRef = useRef(null);
   const apiBase = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '';
   const isMultiple = ['bulk-compress', 'merge-pdf', 'jpg-to-pdf', 'images-to-pdf', 'compare-pdf', 'merge-photos', 'photo-collage'].includes(tool.id);
@@ -147,6 +164,13 @@ export default function ToolWorkspaceRunner({ tool }) {
     setResult(null);
     setError(null);
     setProgress(0);
+    setBgImageFile(null);
+    if (bgImagePreview) {
+      try {
+        URL.revokeObjectURL(bgImagePreview);
+      } catch (_) {}
+    }
+    setBgImagePreview(null);
   };
 
   // QR Code Generation
@@ -209,6 +233,146 @@ export default function ToolWorkspaceRunner({ tool }) {
       reader.readAsDataURL(files[0].file);
     }
   }, [tool.id, files]);
+
+  // ─── Client-Side AI Background Removal & Replacement ───────────────────────
+  const AI_BG_TOOLS = ['remove-background', 'transparent-png', 'remove-white-bg', 'change-background'];
+
+  const handleAiRemoveBackground = useCallback(async () => {
+    if (!files[0]) return;
+
+    if (tool.id === 'change-background' && changeBgMode === 'image' && !bgImageFile) {
+      toast.error('Please choose or upload a background image first, or switch to Color mode.');
+      return;
+    }
+
+    setError(null);
+    setProcessing(true);
+    setProgress(10);
+
+    try {
+      toast(
+        tool.id === 'change-background'
+          ? 'Loading AI model… isolating subject to apply new background.'
+          : 'Loading AI model… this may take a few seconds on first use.',
+        { icon: '🤖', duration: 4000 }
+      );
+
+      const removeBg = await loadRemoveBgLib();
+      setProgress(30);
+
+      const progressInterval = setInterval(() => {
+        setProgress((p) => (p < 85 ? p + 7 : p));
+      }, 500);
+
+      // The library accepts a Blob/File directly
+      // publicPath defaults to the official CDN — no config needed
+      const cutoutBlob = await removeBg(files[0].file, {
+        debug: false,
+        model: 'medium',
+      });
+
+      clearInterval(progressInterval);
+      setProgress(88);
+
+      let finalBlob = cutoutBlob;
+      let outputFilename = `${files[0].name.replace(/\.[^.]+$/, '')}_nobg.png`;
+
+      // If change-background tool, composite onto chosen background (color or image)
+      if (tool.id === 'change-background') {
+        setProgress(92);
+        const cutoutImg = await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error('Failed to load isolated subject image.'));
+          img.src = URL.createObjectURL(cutoutBlob);
+        });
+
+        const canvas = document.createElement('canvas');
+        const width = cutoutImg.naturalWidth || cutoutImg.width;
+        const height = cutoutImg.naturalHeight || cutoutImg.height;
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+
+        if (changeBgMode === 'color') {
+          // Fill chosen background color
+          ctx.fillStyle = changeBgColor || '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+          // Draw isolated subject on top
+          ctx.drawImage(cutoutImg, 0, 0, width, height);
+        } else if (changeBgMode === 'image' && bgImagePreview) {
+          const bgImg = await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('Failed to load background backdrop image.'));
+            img.src = bgImagePreview;
+          });
+
+          // Draw background with cover fit (centers and nicely scales to fill canvas)
+          const canvasRatio = width / height;
+          const bgRatio = bgImg.naturalWidth / bgImg.naturalHeight;
+          let drawW = width;
+          let drawH = height;
+          let drawX = 0;
+          let drawY = 0;
+
+          if (bgRatio > canvasRatio) {
+            drawH = height;
+            drawW = height * bgRatio;
+            drawX = (width - drawW) / 2;
+            drawY = 0;
+          } else {
+            drawW = width;
+            drawH = width / bgRatio;
+            drawX = 0;
+            drawY = (height - drawH) / 2;
+          }
+
+          ctx.drawImage(bgImg, drawX, drawY, drawW, drawH);
+          // Draw isolated subject on top
+          ctx.drawImage(cutoutImg, 0, 0, width, height);
+        }
+
+        try {
+          URL.revokeObjectURL(cutoutImg.src);
+        } catch (_) {}
+
+        finalBlob = await new Promise((resolve) => {
+          canvas.toBlob(resolve, 'image/png');
+        });
+
+        outputFilename = `${files[0].name.replace(/\.[^.]+$/, '')}_bg_changed.png`;
+      }
+
+      setProgress(100);
+      const url = URL.createObjectURL(finalBlob);
+
+      // Build a synthetic result compatible with the existing result display UI
+      setResult({
+        file: {
+          filename: outputFilename,
+          size: finalBlob.size,
+          mimeType: 'image/png',
+          // Use the blob URL directly (no server upload needed)
+          downloadUrl: url,
+          token: null,
+          _isBlobUrl: true,
+        },
+      });
+
+      toast.success(
+        tool.id === 'change-background'
+          ? 'Background replaced successfully!'
+          : 'Background removed successfully!'
+      );
+    } catch (err) {
+      console.error('AI BG processing error:', err);
+      setError(`AI background processing failed: ${err.message}. Try a different image or refresh the page.`);
+      toast.error('Background processing failed.');
+    } finally {
+      setProcessing(false);
+    }
+  }, [files, tool.id, changeBgMode, changeBgColor, bgImageFile, bgImagePreview]);
 
   // Submit Processing Job
   const handleProcess = async () => {
@@ -788,6 +952,206 @@ export default function ToolWorkspaceRunner({ tool }) {
               </div>
             )}
 
+            {/* Change Background Settings */}
+            {tool.id === 'change-background' && (
+              <div className="space-y-5">
+                <div>
+                  <label className="text-xs font-semibold text-muted block mb-2">
+                    Choose New Background Type
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setChangeBgMode('color')}
+                      className={`p-3 rounded-xl border flex items-center justify-center gap-2 text-xs font-semibold transition-all ${
+                        changeBgMode === 'color'
+                          ? 'border-lime-400 bg-lime-400/10 text-lime-400 shadow-sm'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-muted hover:border-white/20'
+                      }`}
+                    >
+                      <Palette className="w-4 h-4" />
+                      Solid / Custom Color
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setChangeBgMode('image')}
+                      className={`p-3 rounded-xl border flex items-center justify-center gap-2 text-xs font-semibold transition-all ${
+                        changeBgMode === 'image'
+                          ? 'border-lime-400 bg-lime-400/10 text-lime-400 shadow-sm'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-muted hover:border-white/20'
+                      }`}
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                      Custom Backdrop Image
+                    </button>
+                  </div>
+                </div>
+
+                {/* Option 1: Solid or Any Custom Color */}
+                {changeBgMode === 'color' && (
+                  <div className="space-y-3.5 p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-secondary)]">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-muted">
+                        Color Presets
+                      </label>
+                      <span className="text-[11px] font-mono text-muted">
+                        Selected: <span className="font-semibold text-white uppercase">{changeBgColor}</span>
+                      </span>
+                    </div>
+
+                    {/* Quick Swatches (White, Black, and more) */}
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: 'White', hex: '#ffffff' },
+                        { label: 'Black', hex: '#000000' },
+                        { label: 'Light Gray', hex: '#e2e8f0' },
+                        { label: 'Dark Slate', hex: '#0f172a' },
+                        { label: 'Studio Blue', hex: '#2563eb' },
+                        { label: 'Vibrant Red', hex: '#ef4444' },
+                        { label: 'Emerald', hex: '#10b981' },
+                        { label: 'Purple', hex: '#8b5cf6' },
+                        { label: 'Amber', hex: '#f59e0b' },
+                        { label: 'Rose Pink', hex: '#ec4899' },
+                      ].map((preset) => (
+                        <button
+                          key={preset.hex}
+                          type="button"
+                          onClick={() => setChangeBgColor(preset.hex)}
+                          className={`group flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition-all ${
+                            changeBgColor.toLowerCase() === preset.hex.toLowerCase()
+                              ? 'border-lime-400 bg-lime-400/15 text-white ring-1 ring-lime-400'
+                              : 'border-white/10 bg-black/20 text-muted hover:border-white/25'
+                          }`}
+                        >
+                          <span
+                            className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-sm"
+                            style={{ backgroundColor: preset.hex }}
+                          />
+                          <span>{preset.label}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Pick ANY custom color */}
+                    <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center gap-3">
+                      <label className="text-xs font-semibold text-muted shrink-0">
+                        Pick Any Custom Color:
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          className="w-10 h-9 rounded-lg cursor-pointer bg-transparent border border-white/10"
+                          value={changeBgColor}
+                          onChange={(e) => setChangeBgColor(e.target.value)}
+                        />
+                        <input
+                          type="text"
+                          className="input-field text-xs font-mono w-24 py-1.5 uppercase"
+                          value={changeBgColor}
+                          onChange={(e) => setChangeBgColor(e.target.value)}
+                          placeholder="#ffffff"
+                        />
+                      </div>
+                      <div
+                        className="w-8 h-8 rounded-lg border border-white/20 shadow-inner ml-auto"
+                        style={{ backgroundColor: changeBgColor }}
+                        title="Live Background Preview"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Option 2: Upload Custom Backdrop Image */}
+                {changeBgMode === 'image' && (
+                  <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-secondary)] space-y-3">
+                    <label className="text-xs font-semibold text-muted block">
+                      Upload New Backdrop Photo
+                    </label>
+
+                    {!bgImagePreview ? (
+                      <label className="border-2 border-dashed border-[var(--border-medium)] hover:border-lime-400 rounded-xl p-6 text-center cursor-pointer flex flex-col items-center justify-center transition-all bg-black/10 hover:bg-lime-400/5 group">
+                        <Upload className="w-7 h-7 text-muted group-hover:text-lime-400 mb-2 transition-colors" />
+                        <span className="text-xs font-semibold text-white group-hover:text-lime-400">
+                          Click to select background photo
+                        </span>
+                        <span className="text-[11px] text-muted mt-0.5">
+                          Supports JPG, PNG, WebP (auto-scales to cover backdrop)
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setBgImageFile(file);
+                              setBgImagePreview(URL.createObjectURL(file));
+                            }
+                          }}
+                        />
+                      </label>
+                    ) : (
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-black/30 border border-white/10">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <img
+                            src={bgImagePreview}
+                            alt="Background preview"
+                            className="w-14 h-14 object-cover rounded-lg border border-white/15 shrink-0"
+                          />
+                          <div className="truncate">
+                            <p className="text-xs font-semibold text-white truncate max-w-xs">
+                              {bgImageFile?.name}
+                            </p>
+                            <p className="text-[11px] text-muted">
+                              {formatBytes(bgImageFile?.size)} • Backdrop Ready
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <label className="btn-secondary text-[11px] py-1.5 px-3 cursor-pointer">
+                            Change
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setBgImageFile(file);
+                                  setBgImagePreview(URL.createObjectURL(file));
+                                }
+                              }}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBgImageFile(null);
+                              if (bgImagePreview) URL.revokeObjectURL(bgImagePreview);
+                              setBgImagePreview(null);
+                            }}
+                            className="text-rose-400 hover:text-rose-300 p-1.5"
+                            title="Remove backdrop photo"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 text-[11px] text-muted">
+                  <Sparkles className="w-3.5 h-3.5 text-lime-400 shrink-0" />
+                  <span>
+                    AI will automatically extract the subject from your main photo and place it seamlessly onto your chosen {changeBgMode === 'color' ? 'color' : 'backdrop image'}.
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Compression & Quality */}
             {['compress-image', 'bulk-compress'].includes(tool.id) && (
               <div className="space-y-4">
@@ -945,7 +1309,7 @@ export default function ToolWorkspaceRunner({ tool }) {
             <div className="pt-2">
               <button
                 type="button"
-                onClick={handleProcess}
+                onClick={AI_BG_TOOLS.includes(tool.id) ? handleAiRemoveBackground : handleProcess}
                 disabled={processing}
                 className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold"
               >
@@ -1073,20 +1437,22 @@ export default function ToolWorkspaceRunner({ tool }) {
 
               <div className="flex items-center gap-2.5">
                 <a
-                  href={result.file.downloadUrl.startsWith('http') ? result.file.downloadUrl : `${apiBase}${result.file.downloadUrl}`}
+                  href={result.file._isBlobUrl ? result.file.downloadUrl : (result.file.downloadUrl.startsWith('http') ? result.file.downloadUrl : `${apiBase}${result.file.downloadUrl}`)}
                   download={result.file.filename}
                   className="btn-primary text-xs py-2.5 px-5 flex items-center gap-2"
                 >
                   <Download className="w-4 h-4" /> Download File
                 </a>
-                <button
-                  type="button"
-                  onClick={handleCleanup}
-                  title="Immediately delete file from server"
-                  className="btn-ghost text-xs p-2.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {!result.file._isBlobUrl && (
+                  <button
+                    type="button"
+                    onClick={handleCleanup}
+                    title="Immediately delete file from server"
+                    className="btn-ghost text-xs p-2.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1133,7 +1499,7 @@ export default function ToolWorkspaceRunner({ tool }) {
                     }}
                   >
                     <img
-                      src={result.file.downloadUrl.startsWith('http') ? result.file.downloadUrl : `${apiBase}${result.file.downloadUrl}`}
+                      src={result.file._isBlobUrl ? result.file.downloadUrl : (result.file.downloadUrl.startsWith('http') ? result.file.downloadUrl : `${apiBase}${result.file.downloadUrl}`)}
                       alt="Processed Result"
                       className="max-h-60 max-w-full object-contain rounded shadow-lg"
                     />

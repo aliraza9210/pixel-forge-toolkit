@@ -10,6 +10,11 @@ export default defineConfig({
       '@': path.resolve(import.meta.dirname, './src'),
     },
   },
+  // Required for @imgly/background-removal: prevent Vite from pre-bundling
+  // the WASM worker and model files — they must be loaded at runtime.
+  optimizeDeps: {
+    exclude: ['@imgly/background-removal'],
+  },
   server: {
     port: 5173,
     proxy: {
@@ -17,6 +22,11 @@ export default defineConfig({
         target: 'http://localhost:5000',
         changeOrigin: true,
       },
+    },
+    // Required headers for SharedArrayBuffer (used by WASM threads)
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
     },
   },
   build: {
