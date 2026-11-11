@@ -5,6 +5,7 @@ import useAuthStore from '../store/authStore';
 import ThemeToggle from '../components/ThemeToggle';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { userApi } from '../services/api';
 
 const TABS = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -21,11 +22,26 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
+    // SQA FIX (BUG-09, Medium): Save used to be a fake — a 600 ms delay
+    // followed by "Settings saved" with no API call, so the new name was
+    // lost on refresh. It now calls PATCH /user/profile and updates the
+    // auth store from the server's response.
+    const trimmed = name.trim();
+    if (trimmed.length < 2 || trimmed.length > 60) {
+      toast.error('Name must be 2–60 characters');
+      return;
+    }
     setSaving(true);
-    // Phase 2: call userApi.updateProfile({ name })
-    await new Promise((r) => setTimeout(r, 600));
-    setSaving(false);
-    toast.success('Settings saved');
+    try {
+      const res = await userApi.updateProfile({ name: trimmed });
+      const updatedUser = res?.data?.data?.user;
+      if (updatedUser) useAuthStore.getState().setUser(updatedUser);
+      toast.success('Settings saved');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Could not save settings');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleLogout() {

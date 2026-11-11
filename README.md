@@ -213,7 +213,7 @@ Tests cover:
 | POST | `/api/process/image/bulk-compress` | Optional | Compress multiple images concurrently into a downloadable ZIP archive |
 | POST | `/api/process/pdf/:toolId` | Optional | Process PDF (merge, split, rotate, watermark, page numbers, protect, unlock, extract, compare) |
 | POST | `/api/process/ai/:toolId` | Optional | Process document with AI (summarize, Q&A, key points, flashcards, outline, translate) |
-| GET | `/api/process/download/:fileToken` | Optional | Securely stream processed file using single-use/ephemeral token |
+| GET | `/api/process/download/:fileToken` | Optional | Securely stream processed file using an ephemeral token (reusable until it expires or is deleted via cleanup) |
 | DELETE | `/api/process/cleanup/:fileToken` | Optional | Immediate user-initiated file deletion from server disk |
 
 ---

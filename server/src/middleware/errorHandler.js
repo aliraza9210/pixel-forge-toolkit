@@ -21,6 +21,20 @@ function errorHandler(err, req, res, next) {
     return sendError(res, err.message, 400);
   }
 
+  // SQA FIX (BUG-02, High): client errors were all surfacing as 500.
+  // A rejected upload (bad extension / MIME) is a 400, and a blocked
+  // CORS origin is a 403 — not a server error.
+  if (typeof err.message === 'string' && err.message.startsWith('CORS blocked origin')) {
+    return sendError(res, 'Origin not allowed', 403);
+  }
+  if (
+    typeof err.message === 'string' &&
+    (err.message.startsWith('Unsupported file extension') ||
+      err.message.startsWith('Unsupported MIME type'))
+  ) {
+    return sendError(res, err.message, 400);
+  }
+
   // Mongoose validation error
   if (err.name === 'ValidationError') {
     const errors = Object.values(err.errors).map((e) => e.message);

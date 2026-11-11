@@ -49,6 +49,29 @@ async function recordJob({ user, toolId, status, inputFileCount, outputFileCount
 }
 
 /**
+ * SQA FIX (BUG-02, High): errors thrown for invalid client input
+ * ("Please select at least 2 PDF files", "A password must be provided", …)
+ * were returned as HTTP 500. They are client errors → 400. Anything else
+ * stays a 500, and in production the message is generic so internal
+ * (Sharp / pdf-lib) details do not leak.
+ */
+function processErrorStatus(err) {
+  if (err && typeof err.message === 'string') {
+    if (/^(Please select|Please provide|Please upload|Please enter|A password must|No readable text|No image file)/i.test(err.message)) {
+      return 400;
+    }
+  }
+  return 500;
+}
+
+function processErrorMessage(err, status) {
+  if (status >= 500 && process.env.NODE_ENV === 'production') {
+    return 'Processing failed. Please try again.';
+  }
+  return err.message || 'Processing failed.';
+}
+
+/**
  * Helper to save buffer to processed file and register for download
  */
 function saveBufferAndRegister(buffer, originalName, extension, mimeType) {
@@ -387,7 +410,12 @@ async function processImage(req, res) {
       }
       case 'svg-optimizer': {
         const rawSvg = fs.readFileSync(file.path, 'utf8');
-        const optimized = rawSvg.replace(/<!--[\s\S]*?-->/g, '').replace(/>\s+</g, '><').trim();
+        // SQA FIX (BUG-06): svg-optimizer returned the uploaded SVG verbatim
+        // (only comments/whitespace stripped), so an embedded <script> or
+        // onload handler survived into the downloadable file. Sanitize first.
+        const { sanitizeSvg } = require('../utils/svgSanitizer');
+        const sanitized = sanitizeSvg(rawSvg);
+        const optimized = sanitized.replace(/<!--[\s\S]*?-->/g, '').replace(/>\s+</g, '><').trim();
         resultBuffer = Buffer.from(optimized, 'utf8');
         outExt = 'svg';
         mimeType = 'image/svg+xml';
@@ -409,6 +437,24 @@ async function processImage(req, res) {
       }
       default: {
         return res.status(400).json({ success: false, message: `Tool "${toolId}" is not supported.` });
+      }
+    }
+
+    // SQA FIX (BUG-03, Medium): several image services (resize / crop /
+    // rotate / effects) return Sharp's `.toBuffer()` with NO output format,
+    // so Sharp preserves the INPUT format — yet the controller labelled the
+    // file with the requested/default format (e.g. a PNG labelled .webp).
+    // Detect the real format from the produced bytes and label it honestly.
+    // SVG output (svg-optimizer) is text, not a raster image: skip it.
+    if (outExt !== 'svg') {
+      try {
+        const actual = await sharp(resultBuffer).metadata();
+        if (actual && actual.format && actual.format !== 'svg') {
+          outExt = actual.format === 'jpeg' ? 'jpg' : actual.format;
+          mimeType = `image/${actual.format === 'jpg' ? 'jpeg' : actual.format}`;
+        }
+      } catch (_) {
+        // Keep the controller's claimed format if detection fails.
       }
     }
 
@@ -439,7 +485,8 @@ async function processImage(req, res) {
     }
     const durationMs = Date.now() - startTime;
     await recordJob({ user: req.user, toolId, status: 'failed', durationMs, error: err.message });
-    return res.status(500).json({ success: false, message: err.message });
+    const status = processErrorStatus(err);
+    return res.status(status).json({ success: false, message: processErrorMessage(err, status) });
   }
 }
 
@@ -491,7 +538,8 @@ async function processBulkCompress(req, res) {
     for (const f of files) {
       try { fs.unlinkSync(f.path); } catch (_) {}
     }
-    return res.status(500).json({ success: false, message: err.message });
+    const status = processErrorStatus(err);
+    return res.status(status).json({ success: false, message: processErrorMessage(err, status) });
   }
 }
 
@@ -757,7 +805,8 @@ async function processPdf(req, res) {
     });
   } catch (err) {
     files.forEach((f) => { try { fs.unlinkSync(f.path); } catch (_) {} });
-    return res.status(500).json({ success: false, message: err.message });
+    const status = processErrorStatus(err);
+    return res.status(status).json({ success: false, message: processErrorMessage(err, status) });
   }
 }
 
@@ -815,7 +864,8 @@ async function processAi(req, res) {
     if (file && file.path) {
       try { fs.unlinkSync(file.path); } catch (_) {}
     }
-    return res.status(500).json({ success: false, message: err.message });
+    const status = processErrorStatus(err);
+    return res.status(status).json({ success: false, message: processErrorMessage(err, status) });
   }
 }
 

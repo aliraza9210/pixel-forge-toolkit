@@ -16,8 +16,16 @@ const useAuthStore = create((set, get) => ({
     try {
       const res = await authApi.getMe();
       set({ user: res.data.data.user, isAuthenticated: true, isLoading: false });
-    } catch {
-      set({ user: null, isAuthenticated: false, isLoading: false });
+    } catch (err) {
+      // SQA FIX (BUG-08, High): a failed session check used to clear the
+      // user for ANY error — including 429 rate-limit, 500 and network
+      // blips — logging legitimate users out. Only a 401 means the
+      // session is actually invalid; anything else keeps the session.
+      if (err?.response?.status === 401) {
+        set({ user: null, isAuthenticated: false, isLoading: false });
+      } else {
+        set({ isLoading: false });
+      }
     }
   },
 

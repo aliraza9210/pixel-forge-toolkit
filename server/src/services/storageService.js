@@ -7,6 +7,13 @@ const { v4: uuidv4 } = require('uuid');
 const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, '../../uploads');
 const PROCESSED_DIR = process.env.PROCESSED_DIR || path.join(__dirname, '../../processed');
 
+// SQA FIX (BUG-05, Low): FILE_TTL_MINUTES was documented in .env.example
+// but never read — the TTL was hardcoded to 60. Honour the env var.
+const parsedTtl = parseInt(process.env.FILE_TTL_MINUTES, 10);
+const DEFAULT_TTL_MINUTES = Number.isFinite(parsedTtl)
+  ? Math.max(5, Math.min(1440, parsedTtl))
+  : 60;
+
 // Ensure directories exist
 for (const dir of [UPLOADS_DIR, PROCESSED_DIR]) {
   if (!fs.existsSync(dir)) {
@@ -85,7 +92,7 @@ function persistRegistry() {
 /**
  * Register a processed file for secure download
  */
-function registerFile({ filename, originalName, mimeType, isUpload = false, ttlMinutes = 60 }) {
+function registerFile({ filename, originalName, mimeType, isUpload = false, ttlMinutes = DEFAULT_TTL_MINUTES }) {
   const fileToken = uuidv4();
   const baseDir = isUpload ? UPLOADS_DIR : PROCESSED_DIR;
   const filePath = path.join(baseDir, filename);

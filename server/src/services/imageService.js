@@ -28,6 +28,19 @@ function getSharp(input, options = {}) {
         processedInput = Buffer.from(cleanSvg, 'utf8');
       } catch (_) {}
     }
+  } else if (typeof input === 'string' && /\.svg$/i.test(input)) {
+    // SQA FIX (BUG-06, Medium): the sanitizer above only ran for Buffer
+    // inputs, but every processController caller passes a file PATH — so
+    // uploaded SVGs bypassed sanitization entirely. Sanitize file-path
+    // SVGs too before Sharp parses them.
+    try {
+      const rawSvg = fs.readFileSync(input, 'utf8');
+      if (rawSvg.toLowerCase().includes('<svg')) {
+        processedInput = Buffer.from(sanitizeSvg(rawSvg), 'utf8');
+      }
+    } catch (_) {
+      // Fall back to the original path if sanitization fails.
+    }
   }
 
   const mergedOptions = {

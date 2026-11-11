@@ -133,7 +133,9 @@ describe('Security Verification Test Suite', () => {
         .set('Origin', 'https://evilpixelforge.io');
 
       // CORS middleware calls callback(new Error('CORS blocked...'))
-      expect(res.status).toBe(500);
+      // SQA FIX (BUG-02): a blocked origin is a 403, not a 500 — the old
+      // expectation of 500 encoded the bug.
+      expect(res.status).toBe(403);
     });
   });
 

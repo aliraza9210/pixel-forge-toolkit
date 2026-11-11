@@ -67,7 +67,9 @@ describe('File Security & Storage Management', () => {
       .post('/api/process/image/compress-image')
       .attach('file', Buffer.from('malicious binary'), 'exploit.exe');
 
-    expect(res.status).toBe(500);
+    // SQA FIX (BUG-02): a rejected upload is a client error (400), not a
+    // server error — the old expectation of 500 encoded the bug.
+    expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/Unsupported file extension/i);
   });
 });

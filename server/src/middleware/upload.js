@@ -73,7 +73,13 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 35 * 1024 * 1024, // 35 MB max per individual file
+    // SQA FIX (BUG-05, Low): MAX_FILE_SIZE_MB was documented in
+    // .env.example but never read — the limit was hardcoded to 35 MB.
+    fileSize: (() => {
+      const parsed = parseInt(process.env.MAX_FILE_SIZE_MB, 10);
+      const mb = Number.isFinite(parsed) ? Math.max(1, Math.min(100, parsed)) : 35;
+      return mb * 1024 * 1024;
+    })(),
     files: 20, // Max 20 files for batch operations
   },
 });

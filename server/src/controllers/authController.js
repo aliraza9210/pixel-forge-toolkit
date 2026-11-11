@@ -1,10 +1,20 @@
 'use strict';
 
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const UserSettings = require('../models/UserSettings');
 const { sendSuccess, sendError, sendCreated } = require('../utils/response');
+
+// SQA FIX (BUG-01, High): fail fast with 503 when MongoDB is down instead of
+// letting Mongoose buffer the query for 10s and then returning a 500 that
+// leaks the internal "buffering timed out" message to the client.
+function dbUnavailable(res) {
+  return mongoose.connection.readyState !== 1
+    ? sendError(res, 'Database unavailable. Please try again shortly.', 503)
+    : null;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -84,6 +94,8 @@ async function register(req, res, next) {
 
     const { name, email, password } = req.body;
 
+    if (dbUnavailable(res)) return;
+
     if (typeof email !== 'string' || typeof password !== 'string' || typeof name !== 'string') {
       return sendError(res, 'Invalid input data types', 400);
     }
@@ -112,6 +124,8 @@ async function login(req, res, next) {
 
     const { email, password } = req.body;
 
+    if (dbUnavailable(res)) return;
+
     if (typeof email !== 'string' || typeof password !== 'string') {
       return sendError(res, 'Invalid email or password format', 400);
     }
@@ -139,7 +153,15 @@ async function login(req, res, next) {
 }
 
 async function logout(req, res) {
-  res.clearCookie('pixelforge_token', { path: '/' });
+  // SQA FIX (BUG-07, Low): clear with the same flags the cookie was set with
+  // (httpOnly / secure / sameSite / path), otherwise browsers may keep it.
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.clearCookie('pixelforge_token', {
+    path: '/',
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'strict' : 'lax',
+  });
   return sendSuccess(res, {}, 'Logged out successfully');
 }
 
